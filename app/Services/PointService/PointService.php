@@ -3,10 +3,8 @@
 namespace App\Services\PointService;
 
 use App\Helpers\ResponseError;
-use App\Http\Resources\PointResource;
 use App\Models\Point;
 use App\Services\CoreService;
-use Illuminate\Http\JsonResponse;
 use Throwable;
 
 class PointService extends CoreService
@@ -26,6 +24,7 @@ class PointService extends CoreService
                 'data'   => $point,
             ];
         } catch (Throwable $e) {
+            $this->error($e);
             return [
               'status' => false,
               'code'   => ResponseError::ERROR_501,
@@ -44,6 +43,7 @@ class PointService extends CoreService
                 'data'   => $point,
             ];
         } catch (Throwable $e) {
+            $this->error($e);
             return [
               'status' => false,
               'code'   => ResponseError::ERROR_501,
@@ -59,7 +59,6 @@ class PointService extends CoreService
      */
     public function setActive(int $id): array
     {
-        /** @var Point $point */
         $point = $this->model()->find($id);
 
         if (empty($point)) {
@@ -69,6 +68,7 @@ class PointService extends CoreService
             ];
         }
 
+        /** @var Point $point */
         $point->update(['active' => !$point->active]);
 
         return [

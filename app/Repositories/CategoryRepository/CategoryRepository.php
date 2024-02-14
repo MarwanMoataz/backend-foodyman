@@ -32,47 +32,49 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
     /**
      * Get Parent, only categories where parent_id == 0
      */
-    public function parentCategories(array $filter = []): LengthAwarePaginator
+    public function categories(array $filter = []): LengthAwarePaginator
     {
         /** @var Category $category */
         $category = $this->model();
 
+        $locale = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
+
         return $category
             ->updatedDate($this->updatedDate)
             ->filter($filter)
-            ->where(fn($q) => $q->where('parent_id', 0)->orWhereNull('parent_id'))
             ->with([
                 'translations',
                 'translation' => fn($q) => $q->select('id', 'locale', 'title', 'category_id')
-                    ->where('locale', $this->language),
-
-                'children' => fn($q) => $q->select(['id', 'uuid', 'keywords', 'parent_id', 'type', 'img', 'active']),
-                'children.translations',
-                'children.translation' => fn($q) => $q->select('id', 'locale', 'title', 'category_id')
-                    ->where('locale', $this->language),
-
-                'children.children' => fn($q) => $q->select([
-                    'id', 'uuid', 'keywords', 'parent_id', 'type', 'img', 'active'
-                ]),
-                'children.children.translations',
-                'children.children.translation' => fn($q) => $q->select('id', 'locale', 'title', 'category_id')
-                    ->where('locale', $this->language),
+                    ->where('locale', $this->language)->orWhere('locale', $locale),
+                'shop.translation' => fn($q) => $q->select('id', 'locale', 'title', 'shop_id')
+                    ->where(function ($query) use($locale) {
+						$query->where('locale', $this->language)->orWhere('locale', $locale);
+					}),
             ])
-            ->whereHas('translation',
-                fn($q) => $q->select('id', 'locale', 'title', 'category_id')->where('locale', $this->language),
-            )
-            ->select([
-                'id',
-                'uuid',
-                'keywords',
-                'parent_id',
-                'type',
-                'img',
-                'active',
-                'deleted_at',
-            ])
-            ->when(data_get($filter, 'receipt-count'), fn($q) => $q->withCount('receipts'))
-            ->orderByDesc('id')
+            ->orderBy(data_get($filter, 'column', 'id'), data_get($filter, 'sort', 'desc'))
+            ->paginate(data_get($filter, 'perPage', 10));
+    }
+
+    /**
+     * Get Parent, only categories where parent_id == 0
+     */
+    public function parentCategories(array $filter = []): LengthAwarePaginator
+    {
+        /** @var Category $category */
+        $category = $this->model();
+		$locale = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
+
+        return $category
+            ->updatedDate($this->updatedDate)
+            ->filter($filter)
+			->withThreeChildren($filter + ['lang' => $this->language])
+			->with([
+				'translations',
+				'shop.translation' => fn($q) => $q->select('id', 'locale', 'title', 'shop_id')
+					->where('locale', $this->language)->orWhere('locale', $locale),
+			])
+            ->where(fn($q) => $q->where('parent_id', null)->orWhere('parent_id', 0))
+            ->orderBy(data_get($filter, 'column', 'id'), data_get($filter, 'sort', 'desc'))
             ->paginate(data_get($filter, 'perPage', 10));
     }
 
@@ -86,16 +88,7 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
         $category = $this->model();
 
         return $category
-            ->withSecondChildren(['language' => $this->language])
-            ->select([
-                'id',
-                'uuid',
-                'keywords',
-                'parent_id',
-                'type',
-                'img',
-                'active',
-            ])
+            ->withSecondChildren(['lang' => $this->language])
             ->find($id);
     }
 
@@ -107,13 +100,17 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
     {
         /** @var Category $category */
         $category = $this->model();
+        $locale = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
 
         return $category
             ->filter($filter)
             ->with([
-                'translation' => fn($q) => $q->where('locale', $this->language)
+				'shop.translation' => fn($q) => $q->select('id', 'locale', 'title', 'shop_id')
+					->where('locale', $this->language)->orWhere('locale', $locale),
+
+                'translation' => fn($q) => $q->where('locale', $this->language)->orWhere('locale', $locale)
             ])
-            ->orderByDesc('id')
+            ->orderBy(data_get($filter, 'column', 'id'), data_get($filter, 'sort', 'desc'))
             ->paginate(data_get($filter, 'perPage', 10));
     }
 
@@ -125,13 +122,17 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
     {
         /** @var Category $category */
         $category = $this->model();
+        $locale = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
 
         return $category
             ->filter($filter)
             ->with([
-                'translation' => fn($q) => $q->where('locale', $this->language)
+				'shop.translation' => fn($q) => $q->select('id', 'locale', 'title', 'shop_id')
+					->where('locale', $this->language)->orWhere('locale', $locale),
+
+                'translation' => fn($q) => $q->where('locale', $this->language)->orWhere('locale', $locale)
             ])
-            ->orderByDesc('id')
+            ->orderBy(data_get($filter, 'column', 'id'), data_get($filter, 'sort', 'desc'))
             ->paginate(data_get($filter, 'perPage', 10));
     }
 
@@ -144,27 +145,29 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
         $category = $this->model();
 
         return $category
-            ->updatedDate($this->updatedDate)
             ->filter($filter)
-            ->with([
+            ->withThreeChildren($filter)
+            ->select(['id', 'parent_id', 'keywords', 'type', 'active', 'input'])
+            ->orderBy(data_get($filter, 'column', 'id'), data_get($filter, 'sort', 'desc'))
+            ->paginate(data_get($filter, 'perPage', 10));
+    }
 
-                'translation' => fn($q) => $q->select('id', 'locale', 'title', 'category_id')
-                    ->where('locale', $this->language),
+    /**
+     * Get Parent, only categories where parent_id == 0
+     */
+    public function mySelectPaginate(array $filter = [], ?int $shopId = null): LengthAwarePaginator
+    {
+        /** @var Category $category */
+        $category = $this->model();
 
-                'children' => fn($q) => $q->select(['id', 'keywords', 'parent_id', 'type']),
+        unset($filter['shop_id']);
 
-                'children.translation' => fn($q) => $q->select('id', 'locale', 'title', 'category_id')
-                    ->where('locale', $this->language),
-
-                'children.children' => fn($q) => $q->select(['id', 'keywords', 'parent_id', 'type']),
-
-                'children.children.translation' => fn($q) => $q->select('id', 'locale', 'title', 'category_id')
-                    ->where('locale', $this->language)
-
-            ])
-            ->whereHas('translation', fn($q) => $q->where('locale', $this->language))
-            ->orderByDesc('id')
-            ->select(['id', 'parent_id', 'keywords', 'type', 'active'])
+        return $category
+            ->whereHas('shopCategory', fn($q) => $q->where('shop_id', $shopId))
+            ->filter($filter)
+            ->withParent($filter)
+            ->select(['id', 'parent_id', 'keywords', 'type', 'active', 'input', 'shop_id'])
+            ->orderBy(data_get($filter, 'column', 'id'), data_get($filter, 'sort', 'desc'))
             ->paginate(data_get($filter, 'perPage', 10));
     }
 
@@ -179,7 +182,8 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
         return $category
             ->filter($filter)
             ->updatedDate($this->updatedDate)
-            ->withSecondChildren(['language' => $this->language])
+            ->withSecondChildren(['lang' => $this->language])
+            ->orderBy(data_get($filter, 'column', 'id'), data_get($filter, 'sort', 'desc'))
             ->paginate(data_get($filter, 'perPage', 10));
     }
 
@@ -193,8 +197,8 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
 
         return $category
             ->updatedDate($this->updatedDate)
-            ->withParent(['language' => $this->language])
-            ->orderByDesc('id')
+            ->withParent(['lang' => $this->language])
+            ->orderBy(data_get($filter, 'column', 'id'), data_get($filter, 'sort', 'desc'))
             ->get();
     }
 
@@ -207,7 +211,7 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
         $category = $this->model();
 
         return $category
-            ->withParent(['language' => $this->language])
+            ->withParent(['lang' => $this->language])
             ->find($id);
     }
 
@@ -224,14 +228,7 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
 
         return $category
             ->where('uuid', $uuid)
-            ->with([
-                'translation' => fn($q) => $q->select('id', 'locale', 'title', 'category_id')
-                    ->where('locale', $this->language),
-                'children.translation' => fn($q) => $q->select('id', 'locale', 'title', 'category_id')
-                    ->where('locale', $this->language),
-                'parent.translation' => fn($q) => $q->select('id', 'locale', 'title', 'category_id')
-                    ->where('locale', $this->language),
-            ])
+            ->withThreeChildren(['lang' => $this->language])
             ->withCount(['products', 'stocks'])
             ->first();
     }
@@ -245,23 +242,17 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
     {
         /** @var Category $category */
         $category = $this->model();
+        $locale = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
 
         return $category
             ->filter($filter)
-            ->select([
-                'id',
-                'uuid',
-                'keywords',
-                'type',
-                'active',
-            ])
             ->with([
+				'shop.translation' => fn($q) => $q->select('id', 'locale', 'title', 'shop_id')
+					->where('locale', $this->language)->orWhere('locale', $locale),
+
                 'translation' => fn($q) => $q->select('id', 'locale', 'title', 'category_id')
-                    ->where('locale', $this->language)
+                    ->where('locale', $this->language)->orWhere('locale', $locale)
             ])
-            ->whereHas('translation',
-                fn($q) => $q->select('id', 'locale', 'title', 'category_id')->where('locale', $this->language),
-            )
             ->latest()
             ->paginate(data_get($filter, 'perPage', 10));
     }
@@ -296,11 +287,15 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
         $page = data_get($filter, 'page') ?: Paginator::resolveCurrentPage('links');
 
         $perPage = data_get($filter, 'perPage', 10) ?: $categories->getPerPage();
+        $locale = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
 
         $categories = $categories
             ->with([
+				'shop.translation' => fn($q) => $q->select('id', 'locale', 'title', 'shop_id')
+					->where('locale', $this->language)->orWhere('locale', $locale),
+
                 'translation' => fn($q) => $q->select('id', 'locale', 'title', 'category_id')
-                    ->where('locale', $this->language),
+                    ->where('locale', $this->language)->orWhere('locale', $locale),
                 'stocks.countable'
             ])
             ->skip(($page - 1) * $perPage)
@@ -308,10 +303,12 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
             ->select([
                 'id',
                 'uuid',
+                'shop_id',
                 'keywords',
                 'type',
                 'img',
                 'active',
+                'input',
             ])
             ->get()
             ->map(function (Category $category) use ($filter) {
@@ -354,20 +351,29 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
 
         /** @var Category $category */
         $category = $this->model();
+        $locale = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
 
         unset($filter['shop_id']);
 
         return $category
-            ->withThreeChildren(['language' => $this->language])
+            ->withThreeChildren($filter + ['lang' => $this->language])
             ->filter($filter)
             ->with([
+				'shop.translation' => fn($q) => $q->select('id', 'locale', 'title', 'shop_id')
+					->where('locale', $this->language)->orWhere('locale', $locale),
+
                 'translation' => fn($q) => $q->select('id', 'locale', 'title', 'category_id')
-                    ->where('locale', $this->language),
+                    ->where('locale', $this->language)->orWhere('locale', $locale),
             ])
             ->select([
-                'id',
-                'uuid',
-                'type',
+				'id',
+				'uuid',
+				'shop_id',
+				'keywords',
+				'type',
+				'img',
+				'active',
+				'input',
             ])
             ->whereDoesntHave('shopCategory', fn($q) => $q->where('shop_id', data_get($filter, 'shop_id')))
             ->orderByDesc('id')
@@ -380,76 +386,105 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
      */
     public function reportChart(array $filter = []): array
     {
-        $cacheFrom  = date('Y-m', strtotime(data_get($filter, 'date_from')));
-        $cacheTo    = date('Y-m', strtotime(data_get($filter, 'date_to', now())));
-        $dateFrom   = date('Y-m-d 00:00:01', strtotime(data_get($filter, 'date_from')));
-        $dateTo     = date('Y-m-d 23:59:59', strtotime(data_get($filter, 'date_to', now())));
-        $type       = data_get($filter, 'type');
-        $chartType  = data_get($filter, 'chart', 'count');
+        $cacheFrom = date('Y-m', strtotime(data_get($filter, 'date_from')));
+        $cacheTo   = date('Y-m', strtotime(data_get($filter, 'date_to', now())));
+        $dateFrom  = date('Y-m-d 00:00:01', strtotime(data_get($filter, 'date_from')));
+        $dateTo    = date('Y-m-d 23:59:59', strtotime(data_get($filter, 'date_to', now())));
+        $type      = data_get($filter, 'type');
+        $search    = data_get($filter, 'search');
+        $chartType = data_get($filter, 'chart', 'count');
 
         try {
             Cache::delete("category-report-chart-$cacheFrom-$cacheTo");
         } catch (InvalidArgumentException) {
         }
-        $paginate = Cache::remember("category-report-chart-$cacheFrom-$cacheTo", 86400, function () use ($dateFrom, $dateTo) {
+
+        $paginate = Cache::remember("category-report-chart-$cacheFrom-$cacheTo-$search", 86400, function () use ($dateFrom, $dateTo, $search) {
 
             $language = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
 
             $categories = Category::with([
-                'translation'                                           => fn($q) => $q->where('locale', $this->language)
+                'translation' => fn($q) => $q->where('locale', $this->language)
                     ->orWhere('locale', $language)
                     ->select('id', 'locale', 'title', 'category_id'),
 
-                'products'                                              => fn($q) => $q
-                    ->select('id', 'category_id'),
+                'products' => fn($q) => $q->select('id', 'category_id'),
 
-                'products.stocks'                                       => fn($q) => $q
-                    ->select('id', 'countable_type', 'countable_id'),
+                'products.stocks' => fn($q) => $q->select('id', 'countable_type', 'countable_id'),
 
-                'products.stocks.orderDetails'                          => fn($q) => $q
+                'products.stocks.orderDetails' => fn($q) => $q
                     ->select('id', 'order_id', 'stock_id', 'quantity', 'created_at'),
 
-                'products.stocks.orderDetails.order'                    => fn($q) => $q
-                        ->select('id', 'total_price'),
+                'products.stocks.orderDetails.order' => fn($q) => $q->select('id', 'total_price'),
 
-                'children'                                              => fn($q) => $q
-                    ->select(['id', 'parent_id', 'type']),
+                'children' => fn($q) => $q->select(['id', 'parent_id', 'type']),
 
-                'children.translation'                                  => fn($q) => $q->where('locale', $this->language)
+                'children.translation' => fn($q) => $q->where('locale', $this->language)
                     ->orWhere('locale', $language)
                     ->select('id', 'locale', 'title', 'category_id'),
 
-                'children.children'                                     => fn($q) => $q
-                    ->select(['id', 'parent_id', 'type']),
+                'children.children'=> fn($q) => $q->select(['id', 'parent_id', 'type']),
 
-                'children.children.translation'                         => fn($q) => $q->where('locale', $this->language)
+                'children.children.translation' => fn($q) => $q->where('locale', $this->language)
                     ->orWhere('locale', $language)
                     ->select('id', 'locale', 'title', 'category_id'),
 
-                'children.products'                                     => fn($q) => $q
-                    ->select('id', 'category_id'),
+                'children.children.children'=> fn($q) => $q->select(['id', 'parent_id', 'type']),
 
-                'children.products.stocks'                              => fn($q) => $q
-                    ->select('id', 'countable_type', 'countable_id'),
+                'children.children.children.translation' => fn($q) => $q->where('locale', $this->language)
+                    ->orWhere('locale', $language)
+                    ->select('id', 'locale', 'title', 'category_id'),
 
-                'children.products.stocks.orderDetails'                 => fn($q) => $q
+                'children.products' => fn($q) => $q->select('id', 'category_id'),
+
+                'children.products.stocks' => fn($q) => $q->select('id', 'countable_type', 'countable_id'),
+
+                'children.products.stocks.orderDetails' => fn($q) => $q
                     ->select('id', 'order_id', 'stock_id', 'quantity', 'created_at'),
 
-                'children.products.stocks.orderDetails.order'           => fn($q) => $q
-                    ->select('id', 'total_price'),
+                'children.products.stocks.orderDetails.order' => fn($q) => $q->select('id', 'total_price'),
 
-                'children.children.products'                            => fn($q) => $q
-                    ->select('id', 'category_id'),
+                'children.children.products' => fn($q) => $q->select('id', 'category_id'),
 
-                'children.children.products.stocks'                     => fn($q) => $q
-                    ->select('id', 'countable_type', 'countable_id'),
+                'children.children.products.stocks' => fn($q) => $q->select('id', 'countable_type', 'countable_id'),
 
-                'children.children.products.stocks.orderDetails'        => fn($q) => $q
+                'children.children.products.stocks.orderDetails' => fn($q) => $q
                     ->select('id', 'order_id', 'stock_id', 'quantity', 'created_at'),
 
-                'children.children.products.stocks.orderDetails.order'  => fn($q) => $q
-                    ->select('id', 'total_price'),
+                'children.children.products.stocks.orderDetails.order' => fn($q) => $q->select('id', 'total_price'),
+
+                'children.children.children.products' => fn($q) => $q->select('id', 'category_id'),
+
+                'children.children.children.products.stocks' => fn($q) => $q->select('id', 'countable_type', 'countable_id'),
+
+                'children.children.children.products.stocks.orderDetails' => fn($q) => $q
+                    ->select('id', 'order_id', 'stock_id', 'quantity', 'created_at'),
+
+                'children.children.children.products.stocks.orderDetails.order' => fn($q) => $q->select('id', 'total_price'),
             ])
+                ->where(function ($q) use ($search, $language) {
+                    $q->whereHas('translation', fn($query) => $query
+                        ->where(function ($q) use($language) {
+                            $q->where('locale', $this->language)->orWhere('locale', $language);
+                        })
+                        ->where('title', 'like', "%$search%")
+                    )->orWhereHas('children.translation', fn($query) => $query
+                        ->where(function ($q) use($language) {
+                            $q->where('locale', $this->language)->orWhere('locale', $language);
+                        })
+                        ->where('title', 'like', "%$search%")
+                    )->orWhereHas('children.children.translation', fn($query) => $query
+                        ->where(function ($q) use($language) {
+                            $q->where('locale', $this->language)->orWhere('locale', $language);
+                        })
+                        ->where('title', 'like', "%$search%")
+                    )->orWhereHas('children.children.children.translation', fn($query) => $query
+                        ->where(function ($q) use($language) {
+                            $q->where('locale', $this->language)->orWhere('locale', $language);
+                        })
+                        ->where('title', 'like', "%$search%")
+                    );
+                })
                 ->where([
                     ['type', Category::MAIN],
                     ['parent_id', 0],
@@ -507,7 +542,6 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
             ->where('created_at', '>=', $dateFrom)
             ->where('created_at', '<=', $dateTo);
 
-
         $chart = [];
 
         foreach ($paginate as $item) {
@@ -558,7 +592,7 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
                 $this->error($e);
                 return [
                     'status' => false,
-                    'message' => 'Cant export category'
+                    'message' => 'Cant export category. ' . $e->getMessage()
                 ];
             }
         }
@@ -611,7 +645,7 @@ class CategoryRepository extends CoreRepository implements CategoryRepoInterface
                 $count          = data_get($paginate, "$key.count", 0);
 
                 /** @var Stock $stock */
-                $orderDetails   = $stock->orderDetails->whereNull('deleted_at');
+                $orderDetails   = $stock->orderDetails;
 
                 if ($orderDetails->count() === 0) {
                     continue;

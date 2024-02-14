@@ -10,10 +10,10 @@ class ShopClosedDateFactory extends Factory
     public function definition(): array
     {
         return [
-                'shop_id'    => $this->faker->randomNumber(),
-                'date'       => Carbon::now(),
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
+            'shop_id'    => $this->faker->randomNumber(),
+            'date'       => Carbon::now(),
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
         ];
     }
 }

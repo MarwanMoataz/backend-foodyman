@@ -56,7 +56,13 @@ class CategoryController extends RestBaseController
 
     public function paginate(CategoryFilterRequest $request): AnonymousResourceCollection
     {
-        $filter     = $request->merge(['active' => 1, 'has_products' => true])->all();
+        $filter = $request
+            ->merge([
+                'active' => 1,
+                'has_products' => in_array($request->input('type'), ['main', 'sub_main'])
+            ])
+            ->all();
+
         $categories = $this->restRepository->parentCategories($filter);
 
         return CategoryResource::collection($categories);

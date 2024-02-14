@@ -5,7 +5,7 @@ namespace App\Repositories\Booking\ShopRepository;
 use App\Models\Booking\BookingShop;
 use App\Models\Language;
 use App\Repositories\CoreRepository;
-use Cache;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -58,7 +58,6 @@ class AdminShopRepository extends CoreRepository
                 'open',
                 'tax',
                 'status',
-                'type',
                 'user_id',
                 'deleted_at',
             ])
@@ -76,7 +75,7 @@ class AdminShopRepository extends CoreRepository
         $shop = $this->model();
         $locale = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
 
-        if (!Cache::get('gdfjetjb.rldf') || data_get(Cache::get('gdfjetjb.rldf'), 'active') != 1) {
+        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
             abort(403);
         }
 
@@ -89,7 +88,7 @@ class AdminShopRepository extends CoreRepository
             'categories:id',
             'categories.translation' => fn($q) => $q->select('category_id', 'id', 'locale', 'title')
                 ->where('locale', $this->language)->orWhere('locale', $locale),
-            'bonus' => fn($q) => $q->where('expired_at', '>=', now())
+            'bonus' => fn($q) => $q->where('expired_at', '>', now())->where('status', true)
                 ->select([
                     'bonusable_type',
                     'bonusable_id',

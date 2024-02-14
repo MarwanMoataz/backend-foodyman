@@ -21,14 +21,10 @@ class Utility
      */
     public function getPriceByDistance(?float $km, ?Shop $shop, ?float $rate): ?float
     {
-        if (!$km || !$shop || !$rate) {
-        return null;
-    }
+        $price      = data_get($shop, 'price', 0);
+        $pricePerKm = data_get($shop, 'price_per_km');
 
-    $basePrice = ($km <= 6) ? 8 : 14;
-    $pricePerKm = data_get($shop, 'price_per_km', 0);
-
-    return round(($basePrice + ($pricePerKm * ($km - 6))) * $rate, 2);
+        return round(($price + ($pricePerKm * $km)) * $rate, 2);
     }
 
     /**
@@ -39,7 +35,10 @@ class Utility
     public function getDistance(array $origin, array $destination): float|int|null
     {
 
-        if (count($origin) !== 2 && count($destination) !== 2) {
+        if (
+            !data_get($origin, 'latitude') && !data_get($origin, 'longitude') &&
+            !data_get($destination, 'latitude') && !data_get($destination, 'longitude')
+        ) {
             return 0;
         }
 

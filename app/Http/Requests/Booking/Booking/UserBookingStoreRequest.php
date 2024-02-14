@@ -16,7 +16,7 @@ class UserBookingStoreRequest extends BaseRequest
     public function rules(): array
     {
         return [
-            'table_id' => [
+            'table_id'   => [
                 'required',
                 Rule::exists('tables', 'id')->whereNull('deleted_at')
             ],
@@ -27,6 +27,8 @@ class UserBookingStoreRequest extends BaseRequest
             'start_date' => 'date|date_format:Y-m-d H:i',
             'end_date'   => 'date|date_format:Y-m-d H:i',
             'status'     => Rule::in(UserBooking::STATUSES),
+            'note'       => 'nullable|string|max:255',
+            'guest'      => 'nullable|integer',
         ];
     }
 }

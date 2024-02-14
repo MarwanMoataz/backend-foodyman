@@ -51,8 +51,11 @@ class TransactionRepository extends CoreRepository
             'paymentSystem'
         ])->when($shopId, function (Builder $query, $shopId) {
             $query
-                ->where('payable_type', Order::class)
-                ->whereHas('payableOrder', fn($payable) => $payable->where('shop_id', $shopId));
+                ->whereHasMorph(
+                    'payable',
+                    Order::class,
+                    fn($payable) => $payable->where('shop_id', $shopId)
+                );
         })
             ->find($id);
     }

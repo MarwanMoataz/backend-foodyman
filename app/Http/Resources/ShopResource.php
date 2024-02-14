@@ -30,7 +30,7 @@ class ShopResource extends JsonResource
             'parent_id'         => $this->when($this->parent_id, $this->parent_id),
             'price'             => $this->when($this->rate_price, $this->rate_price),
             'price_per_km'      => $this->when($this->rate_price_per_km, $this->rate_price_per_km),
-            'tax'               => $this->when($this->tax, $this->tax),
+            'tax'               => $this->tax,
             'percentage'        => $this->when($this->percentage, $this->percentage),
             'phone'             => $this->when($this->phone, $this->phone),
             'show_type'         => $this->when($this->show_type, $this->show_type),

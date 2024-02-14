@@ -4,63 +4,57 @@ namespace App\Imports;
 
 use App\Models\Category;
 use App\Models\Language;
+use Artisan;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\Importable;
 use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\WithBatchInserts;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Throwable;
 
-class CategoryImport extends BaseImport implements ToCollection, WithHeadingRow, WithBatchInserts
+class CategoryImport extends BaseImport implements ToCollection, WithHeadingRow
 {
     use Importable;
 
-    private string $language;
-
-    public function __construct(string $language)
-    {
-        $this->language = $language;
-    }
+    public function __construct(private string $language, private ?int $shopId = null) {}
 
     /**
      * @param Collection $collection
      * @return void
      */
-    public function collection(Collection $collection)
+    public function collection(Collection $collection): void
     {
         $language = Language::where('default', 1)->first();
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
-        }
 
         foreach ($collection as $row) {
 
             $type = data_get($row, 'type');
 
+            if (!data_get($row, 'img_urls', '')) {
+                continue;
+            }
+
             try {
 
                 DB::transaction(function () use ($row, $language, $type) {
 
-                    $category = Category::withTrashed()->firstOrCreate([
+                    $category = Category::withTrashed()->updateOrCreate([
                         'keywords'  => data_get($row, 'keywords', ''),
                         'type'      => empty($type) ? Category::MAIN : data_get(Category::TYPES, $type, Category::MAIN),
                         'parent_id' => data_get($row, 'parent_id') > 0 ? data_get($row, 'parent_id') : 0,
-                        'active'    => data_get($row, 'active') === 'active' ? 1 : 0,
+                        'shop_id'   => $this->shopId,
                     ], [
+                        'active'     => data_get($row, 'active') === 'active' ? 1 : 0,
                         'deleted_at' => null
                     ]);
 
-                    if (!data_get($row, 'title')) {
-                        return true;
-                    }
-
-                    $category->translation()->delete();
-                    $category->translation()->create([
-                        'locale'        => $this->language ?? $language->locale,
-                        'title'         => data_get($row, 'title'),
-                        'description'   => data_get($row, 'description', '')
+                    $category->translation()->withTrashed()->updateOrInsert([
+                        'category_id' => $category->id,
+                        'locale'      => $this->language ?? $language,
+                    ], [
+                        'title'       => data_get($row, 'title', ''),
+                        'description' => data_get($row, 'description', ''),
+                        'deleted_at' => null
                     ]);
 
                     $this->downloadImages($category, data_get($row, 'img_urls', ''));
@@ -74,6 +68,7 @@ class CategoryImport extends BaseImport implements ToCollection, WithHeadingRow,
 
         }
 
+        Artisan::call('update:models:galleries');
     }
 
     public function headingRow(): int
@@ -83,6 +78,11 @@ class CategoryImport extends BaseImport implements ToCollection, WithHeadingRow,
 
     public function batchSize(): int
     {
-        return 10;
+        return 200;
+    }
+
+    public function chunkSize(): int
+    {
+        return 200;
     }
 }

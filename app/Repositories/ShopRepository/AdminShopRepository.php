@@ -33,7 +33,6 @@ class AdminShopRepository extends CoreRepository
                 'seller'        => fn($q) => $q->select('id', 'firstname', 'lastname', 'uuid'),
                 'seller.roles',
             ])
-            ->whereHas('translation', fn($q) => $q->where('locale', $this->language))
             ->orderByDesc('id')
             ->select([
                 'id',
@@ -72,14 +71,6 @@ class AdminShopRepository extends CoreRepository
                 'translations:id,locale,shop_id',
                 'seller:id,firstname,lastname,uuid,active',
             ])
-            ->whereHas('translation', function ($query) use ($filter) {
-
-                $query->when(data_get($filter, 'not_lang'),
-                    fn($q, $notLang) => $q->where('locale', '!=', data_get($filter, 'not_lang')),
-                    fn($q) => $q->where('locale', '=', $this->language),
-                );
-
-            })
             ->select([
                 'id',
                 'uuid',
@@ -141,7 +132,6 @@ class AdminShopRepository extends CoreRepository
             'tags:id,img',
             'tags.translation' => fn($q) => $q->where('locale', $this->language)->orWhere('locale', $locale),
         ])
-            ->whereHas('translation', fn($q) => $q->where('locale', $this->language)->orWhere('locale', $locale))
             ->where(fn($q) => $q->where('uuid', $uuid)->orWhere('id', $uuid))
             ->first();
     }
@@ -158,10 +148,9 @@ class AdminShopRepository extends CoreRepository
         return $shop
             ->filter($filter)
             ->with([
-                'translation'   => fn($q) => $q->where('locale', $this->language),
-                'discounts'     => fn($q) => $q->where('end', '>=', now())->select('id', 'shop_id', 'end'),
+                'translation' => fn($q) => $q->where('locale', $this->language),
+                'discounts'   => fn($q) => $q->where('end', '>=', now())->select('id', 'shop_id', 'end'),
             ])
-            ->whereHas('translation', fn($q) => $q->where('locale', $this->language))
             ->latest()
             ->select([
                 'id',

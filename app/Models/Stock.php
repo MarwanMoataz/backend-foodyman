@@ -26,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property int $parent_id
  * @property float $price
  * @property int $quantity
+ * @property string $sku
  * @property boolean $addon
  * @property Carbon|null $deleted_at
  * @property-read Product $countable
@@ -85,9 +86,9 @@ class Stock extends Model
         'pivot'
     ];
 
-    public function countable(): MorphTo
+    public function countable(): BelongsTo
     {
-        return $this->morphTo('countable');
+        return $this->belongsTo(Product::class, 'countable_id');
     }
 
     public function bonus(): MorphOne
@@ -107,7 +108,7 @@ class Stock extends Model
 
     public function orderDetails(): HasMany
     {
-        return $this->hasMany(OrderDetail::class)->withTrashed();
+        return $this->hasMany(OrderDetail::class);
     }
 
     public function cartDetails(): HasMany

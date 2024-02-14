@@ -38,7 +38,11 @@ class BrandService extends CoreService implements BrandServiceInterface
             return ['status' => true, 'code' => ResponseError::NO_ERROR, 'data' => $brand];
         } catch (Throwable $e) {
             $this->error($e);
-            return ['status' => false, 'code' => ResponseError::ERROR_501];
+            return [
+                'status'    => false,
+                'code'      => ResponseError::ERROR_501,
+                'message'   => __('errors.' . ResponseError::ERROR_501, locale: $this->language)
+            ];
         }
 
     }
@@ -53,7 +57,9 @@ class BrandService extends CoreService implements BrandServiceInterface
             }
 
             if (data_get($data, 'images.0')) {
+
                 $brand->galleries()->delete();
+
                 $brand->update([
                     'img' => data_get($data, 'images.0')
                 ]);
@@ -65,15 +71,23 @@ class BrandService extends CoreService implements BrandServiceInterface
             return ['status' => true, 'code' => ResponseError::NO_ERROR, 'data' => $brand];
         } catch (Throwable $e) {
             $this->error($e);
-            return ['status' => false, 'code' => ResponseError::ERROR_404];
+            return [
+                'status'  => false,
+                'code'    => ResponseError::ERROR_502,
+                'message' =>  __('errors.' . ResponseError::ERROR_502, locale: $this->language)
+            ];
         }
     }
 
-    public function delete(?array $ids = []): array
+    public function delete(?array $ids = [], ?int $shopId = null): array
     {
         $hasProducts = 0;
 
-        foreach (Brand::whereIn('id', is_array($ids) ? $ids : [])->get() as $brand) {
+        $brands = Brand::whereIn('id', is_array($ids) ? $ids : [])
+            ->when($shopId, fn($q) => $q->where('shop_id', $shopId))
+            ->get();
+
+        foreach ($brands as $brand) {
 
             /** @var Brand $brand */
 
@@ -85,6 +99,10 @@ class BrandService extends CoreService implements BrandServiceInterface
             $brand->delete();
         }
 
-        return ['status' => true, 'code' => ResponseError::ERROR_404] + ($hasProducts ? ['data' => $hasProducts] : []);
+        return [
+                'status'  => true,
+                'code'    => ResponseError::ERROR_507,
+                'message' => __('errors.' . ResponseError::ERROR_507, locale: $this->language)
+            ] + ($hasProducts ? ['data' => $hasProducts] : []);
     }
 }

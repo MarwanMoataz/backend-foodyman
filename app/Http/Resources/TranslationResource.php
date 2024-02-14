@@ -2,6 +2,11 @@
 
 namespace App\Http\Resources;
 
+use App\Models\BannerTranslation;
+use App\Models\BlogTranslation;
+use App\Models\FaqTranslation;
+use App\Models\ReferralTranslation;
+use App\Models\ShopTranslation;
 use App\Models\Translation;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -17,7 +22,7 @@ class TranslationResource extends JsonResource
      */
     public function toArray($request): array
     {
-        /** @var Translation|JsonResource $this */
+        /** @var ShopTranslation|FaqTranslation|ReferralTranslation|BannerTranslation|BlogTranslation|JsonResource $this */
         return [
             'id'                => (int) $this->id,
             'locale'            => (string) $this->locale,
@@ -29,8 +34,6 @@ class TranslationResource extends JsonResource
             'question'          => $this->when($this->question, (string) $this->question),
             'answer'            => $this->when($this->answer, (string) $this->answer),
             'faq'               => $this->when($this->faq, (string) $this->faq),
-            'client_title'      => $this->when($this->client_title, (string) $this->client_title),
-            'secret_title'      => $this->when($this->secret_title, (string) $this->secret_title),
             'deleted_at'        => $this->when($this->deleted_at, $this->deleted_at?->format('Y-m-d H:i:s') . 'Z'),
         ];
     }

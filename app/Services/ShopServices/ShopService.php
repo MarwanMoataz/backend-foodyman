@@ -8,6 +8,7 @@ use App\Models\Shop;
 use App\Services\CoreService;
 use App\Services\Interfaces\ShopServiceInterface;
 use App\Services\ShopCategoryService\ShopCategoryService;
+use App\Traits\SetTranslations;
 use DB;
 use Exception;
 use Illuminate\Support\Facades\Cache;
@@ -15,6 +16,8 @@ use Throwable;
 
 class ShopService extends CoreService implements ShopServiceInterface
 {
+    use SetTranslations;
+
     protected function getModelClass(): string
     {
         return Shop::class;
@@ -30,7 +33,6 @@ class ShopService extends CoreService implements ShopServiceInterface
         try {
             $shopId = DB::transaction(function () use($data) {
 
-                /** @var Shop $parent */
                 $parent = Shop::whereNull('parent_id')->first();
 
                 if (empty($parent)) {
@@ -41,12 +43,13 @@ class ShopService extends CoreService implements ShopServiceInterface
                     throw new Exception(ResponseError::ERROR_213, 422);
                 }
 
+                /** @var Shop $parent */
                 $data['parent_id'] = $parent->id;
 
                 /** @var Shop $shop */
                 $shop = $this->model()->create($this->setShopParams($data));
 
-                $this->setTranslations($shop, $data);
+                $this->setTranslations($shop, $data, true, true);
 
                 if (data_get($data, 'images.0')) {
                     $shop->update([
@@ -110,7 +113,6 @@ class ShopService extends CoreService implements ShopServiceInterface
                 return ['status' => false, 'code' => ResponseError::ERROR_404];
             }
 
-            /** @var Shop $parent */
             $parent = Shop::whereNull('parent_id')->first();
 
             if (empty($parent)) {
@@ -125,7 +127,7 @@ class ShopService extends CoreService implements ShopServiceInterface
                 (new ShopCategoryService)->update($data, $shop);
             }
 
-            $this->setTranslations($shop, $data);
+            $this->setTranslations($shop, $data, true, true);
 
             if (data_get($data, 'images.0')) {
                 $shop->galleries()->delete();
@@ -234,8 +236,6 @@ class ShopService extends CoreService implements ShopServiceInterface
      */
     public function imageDelete(string $uuid, array $data): array
     {
-
-        /** @var Shop $shop */
         $shop = Shop::firstWhere('uuid', $uuid);
 
         if (empty($shop)) {
@@ -246,6 +246,7 @@ class ShopService extends CoreService implements ShopServiceInterface
             ];
         }
 
+        /** @var Shop $shop */
         $shop->galleries()
             ->where('path', data_get($data, 'tag') === 'background' ? $shop->background_img : $shop->logo_img)
             ->delete();
@@ -257,35 +258,5 @@ class ShopService extends CoreService implements ShopServiceInterface
             'code'   => ResponseError::NO_ERROR,
             'data'   => $shop->refresh(),
         ];
-    }
-    /**
-     * Update or Create Shop translations if model was changed.
-     * @param Shop $model
-     * @param $data
-     * @return void
-     */
-    public function setTranslations(Shop $model, $data): void
-    {
-        DB::table('shop_translations')->where('shop_id', $model->id)->delete();
-
-        $title = data_get($data, 'title', []);
-        $title = is_array($title) ? $title : [];
-
-        foreach ($title as $index => $value) {
-
-            if (empty($value)) {
-                continue;
-            }
-
-            $model->translations()->create([
-                'locale'        => $index,
-                'title'         => $value,
-                'description'   => data_get($data, "description.$index"),
-                'address'       => data_get($data, "address.$index"),
-                'deleted_at'    => null
-            ]);
-
-        }
-
     }
 }

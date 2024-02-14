@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\ShopClosedDate;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -53,6 +54,10 @@ class RemoveExpiredShopClosedDates extends Command
                     'file'    => $e->getFile(),
                 ]);
             }
+        }
+
+        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
+            abort(403);
         }
 
         return 0;

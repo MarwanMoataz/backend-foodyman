@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API\v1\Rest\Booking;
 
 use App\Helpers\ResponseError;
+use App\Http\Controllers\API\v1\Dashboard\User\UserBaseController;
 use App\Http\Controllers\API\v1\Rest\RestBaseController;
 use App\Http\Requests\FilterParamsRequest;
 use App\Http\Resources\Booking\ShopSectionResource;

@@ -30,7 +30,7 @@ class CouponController extends RestBaseController
      */
     public function check(CouponCheckRequest $request): JsonResponse
     {
-        $coupon = Coupon::checkCoupon($request->input('coupon'))->first();
+        $coupon = Coupon::checkCoupon($request->input('coupon'), $request->input('shop_id'))->first();
 
         if (empty($coupon)) {
             return $this->onErrorResponse(['code' => ResponseError::ERROR_250]);
@@ -47,6 +47,6 @@ class CouponController extends RestBaseController
             return $this->successResponse(__('web.coupon_found'), CouponResource::make($coupon));
         }
 
-            return $this->successResponse(__('web.coupon_found'), CouponResource::make($coupon));
+        return $this->onErrorResponse(['code' => ResponseError::ERROR_251]);
     }
 }

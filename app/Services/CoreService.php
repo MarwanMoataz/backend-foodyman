@@ -7,19 +7,20 @@ use App\Models\Currency;
 use App\Models\Language;
 use App\Traits\ApiResponse;
 use App\Traits\Loggable;
-use Cache;
+use Illuminate\Support\Facades\Cache;
 use DB;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Psr\SimpleCache\InvalidArgumentException;
 use Throwable;
 
 abstract class CoreService
 {
     use ApiResponse, Loggable;
 
-    private   $model;
-    protected $language;
-    protected $currency;
+    private mixed $model;
+    protected string $language;
+    protected int $currency;
 
     public function __construct()
     {
@@ -36,71 +37,39 @@ abstract class CoreService
     }
 
     /**
-     * Set Default status of Model
-     * @param int|null $id
-     * @param int|null $default
-     * @param null $user
-     * @return array
-     */
-    public function setDefault(int $id = null, int $default = null, $user = null): array
-    {
-        $model = $this->model()->orderByDesc('id')
-            ->when(isset($user), function ($q) use($user) {
-            $q->where('user_id', $user);
-        })->get();
-
-        // Check Languages list, if first records set it default.
-        if (count($model) <= 1) {
-            $this->model()->first()->update(['default' => 1, 'active' => 1]);
-        }
-
-        // Check and update default language if another language came with DEFAULT
-        if ($default) {
-
-            $defaultItem = $this->model()->orderByDesc('id')
-                ->when(isset($user), function ($q) use($user) {
-                    $q->where('user_id', $user);
-                })->whereDefault(1)->first();
-
-            if (!empty($defaultItem)) {
-                $defaultItem->update(['default' => 0]);
-            }
-
-            if ($id) {
-                $item = $this->model()->orderByDesc('id')
-                    ->when(isset($user), function ($q) use ($user) {
-                        $q->where('user_id', $user);
-                    })->find($id);
-                $item->update(['default' => 1, 'active' => 1]);
-            }
-        }
-
-        return ['status' => true, 'code' => ResponseError::NO_ERROR];
-    }
-
-    /**
      * Set default Currency
      */
-    protected function setCurrency()
+    protected function setCurrency(): int
     {
-        return request(
-            'currency_id',
-            data_get(Currency::where('default', 1)->first(['id', 'default']), 'id')
-        );
+        $default = Currency::where('default', 1)->first(['id', 'default'])?->id ?? null;
+
+        $currency = request('currency_id', $default);
+
+        if (is_bool($currency) || is_object($currency) || is_array($currency)) {
+            $currency = $default;
+        }
+
+        return (int)$currency;
+    }
+
+    protected function setLanguage(): string
+    {
+        $default = Language::where('default', 1)->first(['locale', 'default'])?->locale ?? 'en';
+
+        $lang = request('lang', $default);
+
+        if (!is_string($lang)) {
+            $lang = $default;
+        }
+
+        return (string)$lang;
     }
 
     /**
-     * Set default Language
+     * @param array|null $exclude
+     * @return void
      */
-    protected function setLanguage()
-    {
-        return request(
-            'lang',
-            data_get(Language::where('default', 1)->first(['locale', 'default']), 'locale')
-        );
-    }
-
-    public function dropAll(?array $exclude = []): array
+    public function dropAll(?array $exclude = []): void
     {
         /** @var Model|Language $models */
 
@@ -108,7 +77,6 @@ abstract class CoreService
 
         $models = $models->when(data_get($exclude, 'column') && data_get($exclude, 'value'),
             function (Builder $query) use($exclude) {
-
                 $query->where(data_get($exclude, 'column'), '!=', data_get($exclude, 'value'));
             }
         )->get();
@@ -127,12 +95,19 @@ abstract class CoreService
 
         }
 
+        $s = Cache::get('gbgk.gbodwrg');
+
         Cache::flush();
 
-        return ['status' => true, 'code' => ResponseError::NO_ERROR];
+        try {
+            Cache::set('gbgk.gbodwrg', $s);
+        } catch (Throwable|InvalidArgumentException) {}
     }
 
-    public function restoreAll()
+    /**
+     * @return void
+     */
+    public function restoreAll(): void
     {
         /** @var Model|Language $models */
         $models = $this->model();
@@ -153,22 +128,38 @@ abstract class CoreService
 
         }
 
+        $s = Cache::get('gbgk.gbodwrg');
+
         Cache::flush();
 
-        return ['status' => true, 'code' => ResponseError::NO_ERROR];
+        try {
+            Cache::set('gbgk.gbodwrg', $s);
+        } catch (Throwable|InvalidArgumentException) {}
     }
 
-    public function truncate(string $name = '')
+    /**
+     * @param string $name
+     * @return void
+     */
+    public function truncate(string $name = ''): void
     {
         DB::statement("SET foreign_key_checks = 0");
         DB::table($name ?: $this->model()->getTable())->truncate();
         DB::statement("SET foreign_key_checks = 1");
 
+        $s = Cache::get('gbgk.gbodwrg');
+
         Cache::flush();
 
-        return ['status' => true, 'code' => ResponseError::NO_ERROR];
+        try {
+            Cache::set('gbgk.gbodwrg', $s);
+        } catch (Throwable|InvalidArgumentException) {}
     }
 
+    /**
+     * @param array $ids
+     * @return array|int[]|void
+     */
     public function destroy(array $ids)
     {
         foreach ($this->model()->whereIn('id', $ids)->get() as $model) {
@@ -179,20 +170,47 @@ abstract class CoreService
             }
         }
 
+        $s = Cache::get('gbgk.gbodwrg');
+
         Cache::flush();
+
+        try {
+            Cache::set('gbgk.gbodwrg', $s);
+        } catch (Throwable|InvalidArgumentException) {}
     }
 
+    /**
+     * @param array $ids
+     * @return array|int|int[]|void
+     */
     public function delete(array $ids)
     {
         $this->destroy($ids);
+        $s = Cache::get('gbgk.gbodwrg');
+
         Cache::flush();
+
+        try {
+            Cache::set('gbgk.gbodwrg', $s);
+        } catch (Throwable|InvalidArgumentException) {}
     }
 
-    public function remove(array $ids, string $column = 'id'): array
+    /**
+     * @param array $ids
+     * @param string $column
+     * @param array<string>|null $when
+     * @return array
+     */
+    public function remove(array $ids, string $column = 'id', ?array $when = ['column' => null, 'value' => null]): array
     {
         $errorIds = [];
 
-        foreach ($this->model()->whereIn($column, $ids)->get() as $model) {
+        $models = $this->model()
+            ->whereIn($column, $ids)
+            ->when(data_get($when, 'column'), fn($q, $column) => $q->where($column, data_get($when, 'value')))
+            ->get();
+
+        foreach ($models as $model) {
             try {
                 $model->delete();
             } catch (Throwable $e) {
@@ -217,5 +235,4 @@ abstract class CoreService
             )
         ];
     }
-
 }

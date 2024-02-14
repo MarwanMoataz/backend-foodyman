@@ -34,7 +34,7 @@ class TagRepository extends CoreRepository
                 fn(Builder $q, $shopId) => $q->whereHas('product', fn ($b) => $b->where('shop_id', $shopId))
             )
             ->when(isset($data['active']), fn($q) => $q->where('active', $data['active']))
-            ->when(isset($filter['deleted_at']), fn($q) => $q->onlyTrashed())
+            ->when(isset($data['deleted_at']), fn($q) => $q->onlyTrashed())
             ->orderBy(data_get($data, 'column', 'id'), data_get($data, 'sort', 'desc'))
             ->paginate(data_get($data, 'perPage', 15));
     }
