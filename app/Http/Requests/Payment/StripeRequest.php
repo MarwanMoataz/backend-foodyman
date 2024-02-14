@@ -14,11 +14,7 @@ class StripeRequest extends BaseRequest
      */
     public function rules(): array
     {
-        $userId = null;
-
-        if (!auth('sanctum')?->user()?->hasRole('admin')) {
-            $userId = auth('sanctum')->id();
-        }
+        $userId = auth('sanctum')->id();
 
         return [
             'order_id'  => [

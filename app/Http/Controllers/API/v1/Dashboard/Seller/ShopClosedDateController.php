@@ -35,10 +35,6 @@ class ShopClosedDateController extends SellerBaseController
     {
         Artisan::call('remove:expired:closed:dates');
 
-        if (!$this->shop) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
-        }
-
         return $this->show($this->shop->uuid);
     }
 
@@ -51,10 +47,6 @@ class ShopClosedDateController extends SellerBaseController
      */
     public function store(SellerRequest $request): JsonResponse
     {
-        if (!$this->shop) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
-        }
-
         $validated = $request->validated();
         $validated['shop_id'] = $this->shop->id;
 
@@ -75,7 +67,7 @@ class ShopClosedDateController extends SellerBaseController
      */
     public function show(string $uuid): JsonResponse
     {
-        if (!$this->shop || $this->shop->uuid != $uuid) {
+        if ($this->shop->uuid != $uuid) {
             return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
         }
 
@@ -96,7 +88,7 @@ class ShopClosedDateController extends SellerBaseController
      */
     public function update(string $uuid, SellerRequest $request): JsonResponse
     {
-        if (!$this->shop || $this->shop->uuid != $uuid) {
+        if ($this->shop->uuid != $uuid) {
             return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
         }
 
@@ -106,7 +98,9 @@ class ShopClosedDateController extends SellerBaseController
             return $this->onErrorResponse($result);
         }
 
-        return $this->successResponse(__('web.record_has_been_successfully_updated'), []);
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_UPDATED, locale: $this->language)
+        );
     }
 
     /**
@@ -117,12 +111,10 @@ class ShopClosedDateController extends SellerBaseController
      */
     public function destroy(FilterParamsRequest $request): JsonResponse
     {
-        if (!$this->shop) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
-        }
-
         $this->service->delete($request->input('ids', []), $this->shop->id);
 
-        return $this->successResponse(__('web.record_has_been_successfully_delete'), []);
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 }

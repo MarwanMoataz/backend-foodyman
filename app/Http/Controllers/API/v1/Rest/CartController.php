@@ -33,10 +33,23 @@ class CartController extends RestBaseController
         $cart = $this->cartRepository->get(data_get($validated, 'shop_id'), $id);
 
         if (empty($cart)) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
+            return $this->onErrorResponse([
+                'code'    => ResponseError::ERROR_404,
+                'message' => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
+            ]);
         }
 
-        return $this->successResponse(__('web.record_was_found'), CartResource::make($cart));
+        if (!$cart->userCarts?->where('uuid', $request->input('user_cart_uuid'))?->first()) {
+            return $this->onErrorResponse([
+                'code'    => ResponseError::ERROR_400,
+                'message' => __('errors.' . ResponseError::ERROR_400, locale: $this->language)
+            ]);
+        }
+
+        return $this->successResponse(
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
+            CartResource::make($cart)
+        );
     }
 
     public function openCart(OpenCartRequest $request): JsonResponse
@@ -50,7 +63,7 @@ class CartController extends RestBaseController
         }
 
         return $this->successResponse(
-            __('web.record_was_successfully_create'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_CREATED, locale: $this->language),
             data_get($result, 'data')
         );
     }
@@ -64,14 +77,13 @@ class CartController extends RestBaseController
         }
 
         return $this->successResponse(
-            __('web.record_was_successfully_create'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_CREATED, locale: $this->language),
             data_get($result, 'data')
         );
     }
 
     public function insertProducts(RestInsertProductsRequest $request): JsonResponse
     {
-
         if (empty($request->input('user_cart_uuid'))) {
             return $this->onErrorResponse([
                 'code' => ResponseError::ERROR_400,
@@ -86,7 +98,7 @@ class CartController extends RestBaseController
         }
 
         return $this->successResponse(
-            __('web.record_was_successfully_create'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_CREATED, locale: $this->language),
             data_get($result, 'data')
         );
     }
@@ -102,7 +114,9 @@ class CartController extends RestBaseController
             return $this->onErrorResponse($result);
         }
 
-        return $this->successResponse(__('web.record_was_successfully_delete'));
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 
     public function cartProductDelete(FilterParamsRequest $request): JsonResponse
@@ -113,7 +127,9 @@ class CartController extends RestBaseController
             return $this->onErrorResponse($result);
         }
 
-        return $this->successResponse(__('web.record_was_successfully_delete'));
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 
     public function statusChange(string $userCartUuid, Request $request): JsonResponse
@@ -127,7 +143,7 @@ class CartController extends RestBaseController
         $data = data_get($result, 'data');
 
         return $this->successResponse(
-            __('web.record_was_status_changed'),
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
             $data
         );
     }

@@ -15,7 +15,6 @@ use App\Repositories\CartRepository\CartRepository;
 use App\Services\CartService\CartService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class CartController extends UserBaseController
 {
@@ -37,18 +36,24 @@ class CartController extends UserBaseController
     }
 
     /**
-     * @param Request $request
+     * @param FilterParamsRequest $request
      * @return JsonResponse
      */
-    public function get(Request $request): JsonResponse
+    public function get(FilterParamsRequest $request): JsonResponse
     {
         $cart = $this->repository->get($request->input('shop_id', 0));
 
         if (!$cart) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
+            return $this->onErrorResponse([
+                'code'      => ResponseError::ERROR_404,
+                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
+            ]);
         }
 
-        return $this->successResponse(__('web.record_was_found'), CartResource::make($cart));
+        return $this->successResponse(
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
+            CartResource::make($cart)
+        );
     }
 
     /**
@@ -66,7 +71,7 @@ class CartController extends UserBaseController
         }
 
         return $this->successResponse(
-            __('web.record_was_successfully_create'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_CREATED, locale: $this->language),
             data_get($result, 'data')
         );
     }
@@ -92,8 +97,25 @@ class CartController extends UserBaseController
         }
 
         return $this->successResponse(
-            __('web.record_was_successfully_create'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_CREATED, locale: $this->language),
             data_get($result, 'data')
+        );
+    }
+
+    /**
+     * @param FilterParamsRequest $request
+     * @return JsonResponse
+     */
+    public function delete(FilterParamsRequest $request): JsonResponse
+    {
+        $result = $this->service->delete($request->input('ids', []));
+
+        if (!data_get($result, 'status')) {
+            return $this->onErrorResponse($result);
+        }
+
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
         );
     }
 
@@ -117,21 +139,6 @@ class CartController extends UserBaseController
      * @param FilterParamsRequest $request
      * @return JsonResponse
      */
-    public function delete(FilterParamsRequest $request): JsonResponse
-    {
-        $result = $this->service->delete($request->input('ids', []));
-
-        if (!data_get($result, 'status')) {
-            return $this->onErrorResponse($result);
-        }
-
-        return $this->successResponse(__('web.record_was_successfully_delete'));
-    }
-
-    /**
-     * @param FilterParamsRequest $request
-     * @return JsonResponse
-     */
     public function cartProductDelete(FilterParamsRequest $request): JsonResponse
     {
         $result = $this->service->cartProductDelete($request->input('ids', []));
@@ -140,7 +147,9 @@ class CartController extends UserBaseController
             return $this->onErrorResponse($result);
         }
 
-        return $this->successResponse(__('web.record_was_successfully_delete'));
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 
     /**
@@ -149,13 +158,18 @@ class CartController extends UserBaseController
      */
     public function userCartDelete(FilterParamsRequest $request): JsonResponse
     {
-        $result = $this->service->userCartDelete($request->input('ids', []), $request->input('cart_id', 0));
+        $result = $this->service->userCartDelete(
+            $request->input('ids', []),
+            $request->input('cart_id', 0)
+        );
 
         if (!data_get($result, 'status')) {
             return $this->onErrorResponse($result);
         }
 
-        return $this->successResponse(__('web.record_was_successfully_delete'));
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 
     /**
@@ -171,17 +185,17 @@ class CartController extends UserBaseController
         }
 
         return $this->successResponse(
-            __('web.record_was_successfully_create'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_CREATED, locale: $this->language),
             data_get($result, 'data')
         );
     }
 
     /**
      * @param string $uuid
-     * @param Request $request
+     * @param FilterParamsRequest $request
      * @return JsonResponse
      */
-    public function statusChange(string $uuid, Request $request): JsonResponse
+    public function statusChange(string $uuid, FilterParamsRequest $request): JsonResponse
     {
         $result = $this->service->statusChange($uuid, (int)$request->input('cart_id', 0));
 
@@ -190,7 +204,7 @@ class CartController extends UserBaseController
         }
 
         return $this->successResponse(
-            __('web.record_was_status_changed'),
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
             data_get($result, 'data')
         );
     }
@@ -208,7 +222,7 @@ class CartController extends UserBaseController
         }
 
         return $this->successResponse(
-            __('web.record_was_status_changed'),
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
             data_get($result, 'data')
         );
     }
@@ -226,7 +240,9 @@ class CartController extends UserBaseController
             return $this->onErrorResponse($result);
         }
 
-        return $this->successResponse(__('web.products_calculated'), data_get($result, 'data'));
+        return $this->successResponse(
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language), data_get($result, 'data')
+        );
     }
 
 }

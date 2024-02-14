@@ -15,6 +15,7 @@ use App\Services\CoreService;
 use App\Services\WalletHistoryService\WalletHistoryService;
 use DB;
 use Exception;
+use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 class OrderRefundService extends CoreService
@@ -77,11 +78,11 @@ class OrderRefundService extends CoreService
             $orderRefund = $orderRefund->loadMissing([
                 'order.shop:id,uuid,user_id',
                 'order.shop.seller:id',
-                'order.shop.seller.wallet:id,uuid',
+                'order.shop.seller.wallet:id,user_id,uuid',
                 'order.deliveryMan:id',
-                'order.deliveryMan.wallet:id,uuid',
+                'order.deliveryMan.wallet:id,user_id,uuid',
                 'order.user:id',
-                'order.user.wallet:id,uuid',
+                'order.user.wallet:id,user_id,uuid',
                 'order.transactions',
                 'order.orderDetails:id,order_id,stock_id,quantity',
                 'order.orderDetails.stock',

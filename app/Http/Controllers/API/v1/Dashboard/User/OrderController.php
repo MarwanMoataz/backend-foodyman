@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API\v1\Dashboard\User;
 
+use App\Helpers\NotificationHelper;
 use App\Helpers\ResponseError;
 use App\Http\Requests\FilterParamsRequest;
 use App\Http\Requests\Order\AddReviewRequest;
@@ -114,6 +115,14 @@ class OrderController extends UserBaseController
             data_get($tokens, 'ids', [])
         );
 
+        if ((int)data_get(Settings::adminSettings()->where('key', 'order_auto_approved')->first(), 'value') === 1) {
+            (new NotificationHelper)->autoAcceptNotification(
+                data_get($result, 'data'),
+                $this->language,
+                Order::STATUS_ACCEPTED
+            );
+        }
+
         return $this->successResponse(
             __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_CREATED, locale: $this->language),
             $this->orderRepository->reDataOrder(data_get($result, 'data'))
@@ -150,8 +159,8 @@ class OrderController extends UserBaseController
         }
 
         return [
-            'tokens' => array_values(array_unique(array_merge($aTokens, $sTokens))),
-            'ids'    => array_merge(array_keys($adminFirebaseTokens), array_keys($sellersFirebaseTokens))
+            'tokens' => array_unique(array_values(array_unique(array_merge($aTokens, $sTokens)))),
+            'ids'    => array_unique(array_merge(array_keys($adminFirebaseTokens), array_keys($sellersFirebaseTokens)))
         ];
     }
 

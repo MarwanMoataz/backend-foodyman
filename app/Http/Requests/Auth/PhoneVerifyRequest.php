@@ -13,7 +13,9 @@ class PhoneVerifyRequest extends BaseRequest
     public function rules(): array
 	{
 		return [
-            'verifyId'  => [request('type') !== 'firebase' ? 'required' : 'nullable'],
-		];
+            'verifyId' => [request('type') !== 'firebase' ? 'required' : 'nullable'],
+            'phone'    => 'string',
+
+        ];
 	}
 }

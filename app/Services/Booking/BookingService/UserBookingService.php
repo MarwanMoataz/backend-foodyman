@@ -6,6 +6,7 @@ use App\Helpers\ResponseError;
 use App\Models\Booking\UserBooking;
 use App\Models\Language;
 use App\Models\PushNotification;
+use App\Models\Settings;
 use App\Models\Translation;
 use App\Services\CoreService;
 use App\Traits\Notification;
@@ -28,15 +29,15 @@ class UserBookingService extends CoreService
 
             $model = DB::transaction(function () use ($data) {
 
+				$minTime  = Settings::adminSettings()->where('key', 'min_reservation_time')->first()?->value;
+				$dateTo   = date('Y-m-d H:i:59', strtotime(data_get($data, 'end_date', $minTime ? "-$minTime hour" : now())));
+
                 $where = [
                     ['table_id', data_get($data, 'table_id')],
                     ['start_date', '>=', data_get($data, 'start_date')],
                     ['status', UserBooking::NEW],
+                    ['end_date', '<=', $dateTo],
                 ];
-
-                if (data_get($data, 'end_date')) {
-                    $where[] = ['end_date', '<=', data_get($data, 'end_date')];
-                }
 
                 $userBooking = UserBooking::where($where)->first();
 
@@ -48,6 +49,7 @@ class UserBookingService extends CoreService
                 }
 
                 /** @var UserBooking $model */
+
                 $model  = $this->model()->create($data)->load([
                     'booking:id,shop_id',
                     'booking.shop:id,user_id',

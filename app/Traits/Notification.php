@@ -17,96 +17,95 @@ trait Notification
         ?string $message = '',
         ?string $title = null,
         mixed   $data = [],
-        array   $userIds = []
+        array   $userIds = [],
+        ?string $firebaseTitle = '',
     ): void
     {
-        if (empty($receivers)) {
-            return;
-        }
+        dispatch(function () use ($receivers, $message, $title, $data, $userIds, $firebaseTitle) {
 
-        Log::error('receivers', [
-            'receivers' => $receivers,
-            'users'     => $userIds
-        ]);
+            if (empty($receivers)) {
+                return;
+            }
 
-        $serverKey = $this->firebaseKey();
+            $serverKey = $this->firebaseKey();
 
-        $fields = [
-            'registration_ids' => $receivers,
-            'notification' => [
-                'body' => $message,
-                'title' => $title,
-            ],
-            'data' => $data
-        ];
+            $fields = [
+                'registration_ids' => array_values($receivers),
+                'notification' => [
+                    'body'  => $message,
+                    'title' => $firebaseTitle ?? $title,
+                    'sound' => 'default',
+                ],
+                'data' => $data
+            ];
 
-        $headers = [
-            'Authorization' => "key=$serverKey",
-            'Content-Type' => 'application/json'
-        ];
+            $headers = [
+                'Authorization' => "key=$serverKey",
+                'Content-Type' => 'application/json'
+            ];
 
-        $type = data_get($data, 'order.type');
+            $type = data_get($data, 'order.type');
 
-        if (is_array($userIds) && count($userIds) > 0) {
-            (new PushNotificationService)->storeMany([
-                'type'  => $type ?? data_get($data, 'type'),
-                'title' => $title,
-                'body'  => $message,
-                'data'  => $data,
-            ], $userIds);
-        }
+            if (is_array($userIds) && count($userIds) > 0) {
+                (new PushNotificationService)->storeMany([
+                    'type'  => $type ?? data_get($data, 'type'),
+                    'title' => $title,
+                    'body'  => $message,
+                    'data'  => $data,
+                ], $userIds);
+            }
 
-        $result = Http::withHeaders($headers)->post($this->url, $fields);
-        Log::error('result', [$result->json()]);
+            $result = Http::withHeaders($headers)->post($this->url, $fields);
+
+        })->afterResponse();
     }
 
-    public function sendAllNotification(
-        ?string $title = null,
-        mixed   $data = [],
-    ): void
+    public function sendAllNotification(?string $title = null, mixed $data = [], ?string $firebaseTitle = ''): void
     {
-        User::select([
-            'id',
-            'deleted_at',
-            'active',
-            'email_verified_at',
-            'phone_verified_at',
-            'firebase_token',
-        ])
-            ->where('active', 1)
-            ->where(function ($query) {
-                $query
-                    ->whereNotNull('email_verified_at')
-                    ->orWhereNotNull('phone_verified_at');
-            })
-            ->whereNotNull('firebase_token')
-            ->orderBy('id')
-            ->chunk(1000, function ($users) use ($title, $data) {
+        dispatch(function () use ($title, $data, $firebaseTitle) {
 
-                $firebaseTokens = $users?->pluck('firebase_token', 'id')?->toArray();
+            User::select([
+                'id',
+                'deleted_at',
+                'active',
+                'email_verified_at',
+                'phone_verified_at',
+                'firebase_token',
+            ])
+                ->where('active', 1)
+                ->where(fn($q) => $q->whereNotNull('email_verified_at')->orWhereNotNull('phone_verified_at'))
+                ->whereNotNull('firebase_token')
+                ->orderBy('id')
+                ->chunk(1000, function ($users) use ($title, $data, $firebaseTitle) {
 
-                $receives = [];
+                    $firebaseTokens = $users?->pluck('firebase_token', 'id')?->toArray();
 
-                foreach ($firebaseTokens as $firebaseToken) {
+                    $receives = [];
 
-                    if (empty($firebaseToken)) {
-                        continue;
+                    foreach ($firebaseTokens as $firebaseToken) {
+
+                        if (empty($firebaseToken)) {
+                            continue;
+                        }
+
+                        $receives[] = array_filter($firebaseToken, fn($item) => !empty($item));
                     }
 
-                    $receives[] = $firebaseToken;
-                }
+                    $receives = array_merge(...$receives);
 
-                $receives = array_merge(...$receives);
+                    $this->sendNotification(
+                        $receives,
+                        $title,
+                        data_get($data, 'id'),
+                        $data,
+                        array_keys(is_array($firebaseTokens) ? $firebaseTokens : []),
+                        $firebaseTitle
+                    );
 
-                $this->sendNotification(
-                    $receives,
-                    $title,
-                    data_get($data, 'id'),
-                    $data,
-                    array_keys(is_array($firebaseTokens) ? $firebaseTokens : [])
-                );
+                });
 
-            });
+        })->afterResponse();
+
     }
 
     private function firebaseKey()

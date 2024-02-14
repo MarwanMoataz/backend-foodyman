@@ -31,14 +31,10 @@ class ShopCategoryController extends SellerBaseController
      * Display a listing of the resource.
      *
      * @param CategoryFilterRequest $request
-     * @return JsonResponse|AnonymousResourceCollection
+     * @return AnonymousResourceCollection
      */
-    public function index(CategoryFilterRequest $request)
+    public function index(CategoryFilterRequest $request): AnonymousResourceCollection
     {
-        if (!$this->shop) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
-        }
-
         $shopBrands = $this->categoryRepository->shopCategory($request->merge(['shop_id' => $this->shop->id])->all());
 
         return CategoryResource::collection($shopBrands);
@@ -52,10 +48,6 @@ class ShopCategoryController extends SellerBaseController
      */
     public function store(StoreRequest $request): JsonResponse
     {
-        if (!$this->shop) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
-        }
-
         $validated = $request->validated();
         $validated['shop_id'] = $this->shop->id;
 
@@ -65,7 +57,10 @@ class ShopCategoryController extends SellerBaseController
             return $this->onErrorResponse($result);
         }
 
-        return $this->successResponse(__('web.record_successfully_created'), data_get($result, 'data'));
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_CREATED, locale: $this->language),
+            data_get($result, 'data')
+        );
     }
 
     /**
@@ -76,17 +71,19 @@ class ShopCategoryController extends SellerBaseController
      */
     public function show(int $id): JsonResponse
     {
-        if (!$this->shop) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
+        $model = $this->categoryRepository->shopCategoryById($id, $this->shop->id);
+
+        if (!$model) {
+            return $this->onErrorResponse([
+                'code'      => ResponseError::ERROR_404,
+                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
+            ]);
         }
 
-        $shopBrand = $this->categoryRepository->shopCategoryById($id, $this->shop->id);
-
-        if (!$shopBrand) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
-        }
-
-        return $this->successResponse(__('web.coupon_found'), CategoryResource::make($shopBrand));
+        return $this->successResponse(
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
+            CategoryResource::make($model)
+        );
     }
 
     /**
@@ -97,10 +94,6 @@ class ShopCategoryController extends SellerBaseController
      */
     public function update(UpdateRequest $request): JsonResponse
     {
-        if (!$this->shop) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
-        }
-
         $collection = $request->validated();
         $collection['shop_id'] = $this->shop->id;
 
@@ -110,7 +103,10 @@ class ShopCategoryController extends SellerBaseController
             return $this->onErrorResponse($result);
         }
 
-        return $this->successResponse(__('web.record_has_been_successfully_updated'), data_get($result, 'data'));
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_UPDATED, locale: $this->language),
+            data_get($result, 'data')
+        );
     }
 
     /**
@@ -121,25 +117,19 @@ class ShopCategoryController extends SellerBaseController
      */
     public function destroy(FilterParamsRequest $request): JsonResponse
     {
-        if (!$this->shop) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
-        }
-
         $this->shopCategoryService->delete($request->input('ids', []), $this->shop->id);
 
-        return $this->successResponse(__('web.record_has_been_successfully_delete'));
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 
     /**
      * @param CategoryFilterRequest $request
-     * @return JsonResponse|AnonymousResourceCollection
+     * @return AnonymousResourceCollection
      */
-    public function allCategory(CategoryFilterRequest $request)
+    public function allCategory(CategoryFilterRequest $request): AnonymousResourceCollection
     {
-        if (!$this->shop) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
-        }
-
         $category = $this->categoryRepository->shopCategoryNonExistPaginate(
             $request->merge(['shop_id' => $this->shop->id])->all()
         );
@@ -151,14 +141,10 @@ class ShopCategoryController extends SellerBaseController
      * Display a listing of the resource.
      *
      * @param CategoryFilterRequest $request
-     * @return JsonResponse|AnonymousResourceCollection
+     * @return AnonymousResourceCollection
      */
-    public function paginate(CategoryFilterRequest $request)
+    public function paginate(CategoryFilterRequest $request): AnonymousResourceCollection
     {
-        if (!$this->shop) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
-        }
-
         $shopBrands = $this->categoryRepository->shopCategoryPaginate(
             $request->merge(['shop_id' => $this->shop->id])->all()
         );
@@ -170,14 +156,10 @@ class ShopCategoryController extends SellerBaseController
      * Display a listing of the resource.
      *
      * @param CategoryFilterRequest $request
-     * @return JsonResponse|AnonymousResourceCollection
+     * @return AnonymousResourceCollection
      */
-    public function selectPaginate(CategoryFilterRequest $request)
+    public function selectPaginate(CategoryFilterRequest $request): AnonymousResourceCollection
     {
-        if (!$this->shop) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
-        }
-
         $shopBrands = $this->categoryRepository->selectPaginate(
             $request->merge(['shop_id' => $this->shop->id, 'type' => Category::MAIN])->all()
         );

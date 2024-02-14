@@ -56,6 +56,7 @@ class Review extends Model
     protected $guarded = ['id'];
 
     const REVIEW_TYPES = [
+        'shop',
         'blog',
         'order',
         'product',

@@ -4,7 +4,6 @@ namespace App\Imports;
 
 use App\Models\Brand;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Concerns\Importable;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;
@@ -14,24 +13,26 @@ class BrandImport extends BaseImport implements ToCollection, WithHeadingRow, Wi
 {
     use Importable;
 
+    public function __construct(private ?int $shopId = null) {}
+
     /**
      * @param Collection $collection
      * @return void
      */
-    public function collection(Collection $collection)
+    public function collection(Collection $collection): void
     {
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
-        }
         foreach ($collection as $row) {
 
             if (!data_get($row, 'title')) {
                 continue;
             }
 
-            $brand = Brand::updateOrCreate(['title' => data_get($row, 'title')], [
-                'title'     => data_get($row, 'title', ''),
-                'active'    => data_get($row, 'active') === 'active' ? 1 : 0,
+            $brand = Brand::updateOrCreate([
+                'title'   => data_get($row, 'title'),
+                'shop_id' => $this->shopId,
+            ], [
+                'title'  => data_get($row, 'title', ''),
+                'active' => data_get($row, 'active') == 'active',
             ]);
 
             $this->downloadImages($brand, data_get($row, 'img_urls', ''));
@@ -46,6 +47,11 @@ class BrandImport extends BaseImport implements ToCollection, WithHeadingRow, Wi
 
     public function batchSize(): int
     {
-        return 10;
+        return 200;
+    }
+
+    public function chunkSize(): int
+    {
+        return 200;
     }
 }
