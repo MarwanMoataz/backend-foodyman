@@ -17,10 +17,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
-use Schema;
 
 /**
  * App\Models\Product
@@ -40,15 +41,14 @@ use Schema;
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
  * @property string|null $qr_code
+ * @property string|null $bar_code
  * @property int|null $stocks_sum_quantity
  * @property double $tax
  * @property int $shop_id
  * @property boolean $active
  * @property boolean $addon
  * @property string $status
- * @property string $status_note
  * @property string $vegetarian
- * @property string $interval
  * @property string $kcal
  * @property string $carbs
  * @property string $protein
@@ -74,7 +74,6 @@ use Schema;
  * @property-read int|null $addons_count
  * @property-read Collection|Review[] $reviews
  * @property-read int|null $reviews_count
- * @property-read int|null $reviews_avg_rating
  * @property-read Shop|null $shop
  * @property-read Product|null $parent
  * @property-read Collection|Product[] $children
@@ -93,6 +92,7 @@ use Schema;
  * @method static Builder|Product onlyTrashed()
  * @method static Builder|Product query()
  * @method static Builder|Product updatedDate($updatedDate)
+ * @method static Builder|Product whereBarCode($value)
  * @method static Builder|Product whereBrandId($value)
  * @method static Builder|Product whereAddon($value)
  * @method static Builder|Product whereCategoryId($value)
@@ -116,9 +116,8 @@ class Product extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
-        'interval'  => 'double',
-        'active'    => 'bool',
-        'addon'     => 'bool',
+        'active' => 'bool',
+        'addon'  => 'bool',
     ];
 
     const PUBLISHED     = 'published';
@@ -202,14 +201,14 @@ class Product extends Model
         return $this->belongsToMany(ExtraGroup::class, ProductExtra::class);
     }
 
-    public function stock(): HasOne
+    public function stock(): MorphOne
     {
-        return $this->hasOne(Stock::class, 'countable_id');
+        return $this->morphOne(Stock::class, 'countable');
     }
 
-    public function stocks(): HasMany
+    public function stocks(): MorphMany
     {
-        return $this->hasMany(Stock::class, 'countable_id');
+        return $this->morphMany(Stock::class, 'countable');
     }
 
     public function discounts(): BelongsToMany
@@ -242,31 +241,12 @@ class Product extends Model
             unset($array['address']);
         }
 
-        $column = $array['column'] ?? 'id';
-
-        if (Schema::hasColumn('products', $column)) {
-            $column = 'id';
-        }
-
         $query
             ->when(isset($array['price_from']), function ($q) use ($array) {
                 $q->whereHas('stocks', function ($stock) use($array) {
-                    $stock
-                        ->where('price', '>=', data_get($array, 'price_from') / $this->currency())
-                        ->where('price', '<=', data_get($array, 'price_to',10000000000) / $this->currency());
+                    $stock->where('price', '>=', data_get($array, 'price_from') / $this->currency())
+                            ->where('price', '<=', data_get($array, 'price_to',10000000000) / $this->currency());
                 });
-            })
-            ->when(data_get($array, 'actual'), function ($query, $actual) {
-
-                if ($actual === 'in_stock') {
-                    $query->whereHas('stocks', fn($q) => $q->where('quantity', '>', 0));
-                } else if ($actual === 'low_stock') {
-                    $query->whereHas('stocks', fn($q) => $q->where('quantity', '<=', 10)->where('quantity', '>', 0));
-                } else if ($actual === 'out_of_stock') {
-                    $query->whereHas('stocks', fn($q) => $q->where('quantity', '<=', 0));
-                }
-
-                return $query;
             })
             ->when(data_get($array, 'prices'), function (Builder $q, $prices) {
 
@@ -293,9 +273,6 @@ class Product extends Model
             })
             ->when(isset($array['brand_id']), function ($q) use ($array) {
                 $q->where('brand_id', $array['brand_id']);
-            })
-            ->when(data_get($array, 'brand_ids.*'), function ($q) use ($array) {
-                $q->whereIn('brand_id', $array['brand_ids']);
             })
             ->when(isset($array['column_rate']), function ($q) use ($array) {
                 $q->whereHas('reviews', function ($review) use($array) {
@@ -359,7 +336,6 @@ class Product extends Model
             ->when(isset($array['column_price']), function ($q) use ($array) {
                 $q->withAvg('stocks', 'price')->orderBy('stocks_avg_price', data_get($array, 'sort', 'desc'));
             })
-            ->when(isset($array['with_addon']), fn($query, $addon) => $query->whereHas('stocks', fn($q) => $q->whereHas('addons')))
-            ->orderBy($column, data_get($array, 'sort', 'desc'));
+            ->when(isset($array['with_addon']), fn($query, $addon) => $query->whereHas('stocks', fn($q) => $q->whereHas('addons')));
     }
 }

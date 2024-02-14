@@ -12,7 +12,7 @@ interface ShopRepoInterface
 
     public function shopDetails(string $uuid);
 
-    public function takes(array $filter);
+    public function takes();
 
     public function productsAvgPrices();
 

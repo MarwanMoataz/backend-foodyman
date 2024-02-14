@@ -93,6 +93,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['block.ip']], function () {
 
             /* Bookings */
             Route::apiResource('bookings', Seller\Booking\BookingController::class);
+            Route::post('user-booking/status/{id}', [Seller\Booking\UserBookingController::class, 'statusUpdate']);
+
             Route::delete('bookings/delete',        [Seller\Booking\BookingController::class, 'destroy']);
 
             /* User Bookings */

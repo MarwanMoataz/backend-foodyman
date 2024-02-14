@@ -41,10 +41,10 @@ class SellerRequest extends BaseRequest
             'qr_code'               => ['string', Rule::unique('products','qr_code')
                 ->ignore(request()->route('product'),'uuid')
             ],
+            'bar_code'              => 'string',
             'active'                => 'boolean',
             'addon'                 => 'boolean',
             'vegetarian'            => 'boolean',
-            'interval'              => 'numeric',
             'kcal'                  => 'string|max:10',
             'carbs'                 => 'string|max:10',
             'protein'               => 'string|max:10',

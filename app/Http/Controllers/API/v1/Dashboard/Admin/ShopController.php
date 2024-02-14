@@ -94,13 +94,13 @@ class ShopController extends AdminBaseController
      */
     public function show(string $uuid): JsonResponse
     {
+        /** @var Shop $shop */
         $shop = $this->repository->shopDetails($uuid);
 
         if (empty($shop)) {
             return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
         }
 
-        /** @var Shop $shop */
         $shop->loadMissing('translations');
 
         return $this->successResponse(__('web.shop_found'), ShopResource::make($shop));

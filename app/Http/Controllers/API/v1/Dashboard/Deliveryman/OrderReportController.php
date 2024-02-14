@@ -2,13 +2,15 @@
 
 namespace App\Http\Controllers\API\v1\Dashboard\Deliveryman;
 
-use App\Helpers\ResponseError;
 use App\Http\Requests\Order\SellerOrderReportRequest;
 use App\Repositories\OrderRepository\DeliveryMan\OrderReportRepository;
+use App\Traits\Notification;
 use Illuminate\Http\JsonResponse;
 
 class OrderReportController extends DeliverymanBaseController
 {
+    use Notification;
+
     /**
      * @param OrderReportRepository $repository
      */
@@ -25,7 +27,7 @@ class OrderReportController extends DeliverymanBaseController
         $validated['deliveryman'] = auth('sanctum')->id();
 
         return $this->successResponse(
-            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
+            __('web.report_found'),
             $this->repository->report($validated)
         );
     }

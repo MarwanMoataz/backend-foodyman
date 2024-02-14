@@ -46,11 +46,7 @@ class ShopClosedDateService extends CoreService
 
             $this->error($e);
 
-            return [
-                'status'  => false,
-                'code'    => ResponseError::ERROR_501,
-                'message' => __('errors.' . ResponseError::ERROR_501, locale: $this->language)
-            ];
+            return ['status' => false, 'message' => ResponseError::ERROR_501, 'code' => ResponseError::ERROR_501];
         }
     }
 
@@ -77,11 +73,7 @@ class ShopClosedDateService extends CoreService
 
             $this->error($e);
 
-            return [
-                'status'  => false,
-                'code'    => ResponseError::ERROR_502,
-                'message' => __('errors.' . ResponseError::ERROR_502, locale: $this->language)
-            ];
+            return ['status' => false, 'code' => ResponseError::ERROR_501, 'message' => ResponseError::ERROR_501];
         }
     }
 

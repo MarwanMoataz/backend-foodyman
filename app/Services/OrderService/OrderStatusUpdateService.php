@@ -50,14 +50,6 @@ class OrderStatusUpdateService extends CoreService
             ];
         }
 
-		$order = $order->fresh([
-			'user',
-			'pointHistories',
-			'orderRefunds',
-			'orderDetails',
-			'transaction.paymentSystem',
-		]);
-
         try {
             $order = DB::transaction(function () use ($order, $status) {
 
@@ -79,18 +71,7 @@ class OrderStatusUpdateService extends CoreService
 
                     $this->adminWalletTopUp($order);
 
-					if ($order?->transaction?->paymentSystem?->tag == 'cash') {
-						$order->transaction->update([
-							'status' => Transaction::STATUS_PAID,
-						]);
-					}
-
-					$order = $order->loadMissing([
-						'coupon',
-						'pointHistories',
-					]);
-
-                    $point = Point::getActualPoint($order->total_price, $order->shop_id);
+                    $point = Point::getActualPoint($order->total_price);
 
                     if (!empty($point)) {
                         $token  = $order->user?->firebase_token;
@@ -114,11 +95,17 @@ class OrderStatusUpdateService extends CoreService
                             'note'      => 'cashback',
                         ]);
 
-                        $order->user?->wallet?->increment('price', $point);
+                        $order->user?->wallet?->increment($point);
                     }
 
                     PayReferral::dispatchAfterResponse($order->user, 'increment');
                 }
+
+//                $cookingExist = Settings::adminSettings()->where('key', 'cooking_exist')->first()?->value;
+//
+//                if (!$cookingExist && $status == Order::STATUS_ACCEPTED) {
+//
+//                }
 
                 if ($status == Order::STATUS_CANCELED && $order->orderRefunds?->count() === 0) {
 
@@ -141,14 +128,10 @@ class OrderStatusUpdateService extends CoreService
 
                     }
 
-					$order->transaction?->update([
-						'status' => Transaction::STATUS_CANCELED,
-					]);
-
                     if ($order->pointHistories?->count() > 0) {
                         foreach ($order->pointHistories as $pointHistory) {
                             /** @var PointHistory $pointHistory */
-                            $order->user?->wallet?->decrement('price', $pointHistory->price);
+                            $order->user?->wallet?->decrement($pointHistory->price);
                             $pointHistory->delete();
                         }
                     }
@@ -190,6 +173,8 @@ class OrderStatusUpdateService extends CoreService
             ?->where('type', \App\Models\Notification::ORDER_STATUSES)
             ?->first();
 
+        $userToken = null;
+
         if (in_array($order->status, ($notification?->payload ?? []))) {
             $userToken = $order->user?->firebase_token;
         }
@@ -216,8 +201,10 @@ class OrderStatusUpdateService extends CoreService
 
         $default = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
 
-        $tStatus = Translation::where('key', $status)
-            ->where(fn($q) => $q->where('locale', $this->language)->orWhere('locale', $default))
+        $tStatus = Translation::where(function ($q) use ($default) {
+            $q->where('locale', $this->language)->orWhere('locale', $default);
+        })
+            ->where('key', $status)
             ->first()
             ?->value;
 
@@ -230,8 +217,7 @@ class OrderStatusUpdateService extends CoreService
                 'status' => $order->status,
                 'type'   => PushNotification::STATUS_CHANGED
             ],
-            $userIds,
-            __('errors.' . ResponseError::STATUS_CHANGED, ['status' => !empty($tStatus) ? $tStatus : $status], $this->language),
+            $userIds
         );
 
         return ['status' => true, 'code' => ResponseError::NO_ERROR, 'data' => $order];

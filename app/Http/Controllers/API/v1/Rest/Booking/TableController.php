@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API\v1\Rest\Booking;
 
 use App\Helpers\ResponseError;
 use App\Http\Controllers\API\v1\Rest\RestBaseController;
+use App\Http\Requests\BookingFilterParamsRequest;
 use App\Http\Requests\FilterParamsRequest;
 use App\Http\Resources\Booking\TableResource;
 use App\Models\Booking\Table;
@@ -49,10 +50,10 @@ class TableController extends RestBaseController
      * Remove the specified resource from storage.
      *
      * @param int $id
-     * @param FilterParamsRequest $request
+     * @param BookingFilterParamsRequest $request
      * @return array
      */
-    public function disableDates(int $id, FilterParamsRequest $request): array
+    public function disableDates(int $id, BookingFilterParamsRequest $request): array
     {
         $filter = $request->merge(['id' => $id])->all();
 

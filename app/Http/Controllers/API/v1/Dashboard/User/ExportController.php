@@ -6,7 +6,7 @@ use App\Helpers\ResponseError;
 use App\Models\Language;
 use App\Models\Order;
 use App\Models\Settings;
-use Barryvdh\DomPDF\Facade\Pdf as PDF;
+use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Routing\ResponseFactory;
 use Illuminate\Http\JsonResponse;
@@ -41,15 +41,10 @@ class ExportController extends UserBaseController
         ])->find($id);
 
         if (!$order) {
-            return $this->onErrorResponse([
-                'code'    => ResponseError::ERROR_404,
-                'message' => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
-            ]);
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
         }
 
         $logo = Settings::adminSettings()->where('key', 'logo')->first()?->value;
-
-        PDF::setOption(['dpi' => 150, 'defaultFont' => 'sans-serif']);
 
         $pdf = PDF::loadView('order-invoice', compact('order', 'logo'));
 

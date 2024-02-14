@@ -39,7 +39,7 @@ class SellerUpdateRequest extends BaseRequest
             'description.*'         => ['string', 'min:1'],
             'tax'                   => 'numeric',
             'qr_code'               => 'string',
-            'interval'              => 'numeric',
+            'bar_code'              => 'string',
             'active'                => 'boolean',
             'addon'                 => 'boolean',
             'min_qty'               => 'numeric',

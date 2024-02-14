@@ -14,7 +14,6 @@ use App\Repositories\Booking\TableRepository\TableRepository;
 use App\Services\Booking\TableService\TableService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Psr\SimpleCache\InvalidArgumentException;
 
 class TableController extends SellerBaseController
 {
@@ -44,8 +43,8 @@ class TableController extends SellerBaseController
      * @param FilterParamsRequest $request
      * @return JsonResponse
      */
-    public function statistic(FilterParamsRequest $request): JsonResponse
-    {
+    public function statistic(FilterParamsRequest $request) {
+
         $statistic  = $this->reportRepository->bookings($request->merge(['shop_id' => $this->shop->id])->all());
 
         return $this->successResponse(__('errors.' . ResponseError::SUCCESS, locale: $this->language), $statistic);
@@ -155,13 +154,12 @@ class TableController extends SellerBaseController
     }
 
 
-	/**
-	 * Remove the specified resource from storage.
-	 *
-	 * @param FilterParamsRequest $request
-	 * @return JsonResponse
-	 * @throws InvalidArgumentException
-	 */
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param FilterParamsRequest $request
+     * @return JsonResponse
+     */
     public function destroy(FilterParamsRequest $request): JsonResponse
     {
         $result = $this->service->delete($request->input('ids', []), $this->shop->id);

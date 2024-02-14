@@ -31,7 +31,6 @@ use Illuminate\Support\Collection;
  * @property int $servings
  * @property Shop|null $shop
  * @property Collection|Stock[] $stocks
- * @property Collection|ReceiptStock[] $receiptStock
  * @property int $stocks_count
  * @property Collection|ReceiptTranslation[] $translations
  * @property ReceiptTranslation|null $translation
@@ -73,8 +72,8 @@ class Receipt extends Model
     ];
 
     public const DISCOUNT_TYPE_VALUES = [
-        0 => self::DISCOUNT_TYPE_FIX,
-        1 => self::DISCOUNT_TYPE_PERCENT
+        0   => self::DISCOUNT_TYPE_FIX,
+        1   => self::DISCOUNT_TYPE_PERCENT
     ];
 
     public function shop(): BelongsTo
@@ -95,11 +94,6 @@ class Receipt extends Model
     public function translations(): HasMany
     {
         return $this->hasMany(ReceiptTranslation::class);
-    }
-
-    public function receiptStock(): HasMany
-    {
-        return $this->hasMany(ReceiptStock::class);
     }
 
     public function translation(): HasOne
@@ -148,31 +142,31 @@ class Receipt extends Model
             ->when(data_get($filter, 'servings_from'), fn($q, $servingsFrom) => $q->where('servings', '>=', (int)$servingsFrom))
             ->when(data_get($filter, 'servings_to'), fn($q, $servingsTo) => $q->where('servings', '<=', (int)$servingsTo))
             ->when(isset($filter['deleted_at']), fn($q) => $q->onlyTrashed())
-            ->when(data_get($filter, 'search'), function ($q, $search, $filter) {
-                $q->where(function ($query) use ($search, $filter) {
+            ->when(data_get($filter, 'search'), function ($q, $search) {
+                $q->where(function ($query) use ($search) {
                     $query
-                        ->whereHas('translation', function ($q) use($search, $filter) {
+                        ->whereHas('translation', function ($q) use($search) {
                             $q->when(isset($filter['deleted_at']), fn($q) => $q->onlyTrashed())
                                 ->where('title', 'LIKE', "%$search%")
                                 ->select('id', 'receipt_id', 'locale', 'title');
                         })
-                        ->orWhereHas('instruction', function ($q) use($search, $filter) {
+                        ->orWhereHas('instruction', function ($q) use($search) {
                             $q->when(isset($filter['deleted_at']), fn($q) => $q->onlyTrashed())
                                 ->where('title', 'LIKE', "%$search%")
                                 ->select('id', 'receipt_id', 'locale', 'title');
                         })
-                        ->orWhereHas('ingredient', function ($q) use($search, $filter) {
+                        ->orWhereHas('ingredient', function ($q) use($search) {
                             $q->when(isset($filter['deleted_at']), fn($q) => $q->onlyTrashed())
                                 ->where('title', 'LIKE', "%$search%")
                                 ->select('id', 'receipt_id', 'locale', 'title');
                         })
-                        ->orWhereHas('nutritions', function ($q) use($search, $filter) {
+                        ->orWhereHas('nutritions', function ($q) use($search) {
                             $q
                                 ->when(isset($filter['deleted_at']), fn($q) => $q->onlyTrashed())
-                                ->where(function ($b) use ($search, $filter) {
+                                ->where(function ($b) use ($search) {
                                     $b->where('weight', 'LIKE', "%$search%")
                                         ->orWhere('percentage', 'LIKE', "%$search%")
-                                        ->orWhereHas('translation', function ($q) use($search, $filter) {
+                                        ->orWhereHas('translation', function ($q) use($search) {
                                             $q->when(isset($filter['deleted_at']), fn($q) => $q->onlyTrashed())
                                                 ->where('title', 'LIKE', "%$search%")
                                                 ->select('id', 'receipt_nutrition_id', 'locale', 'title');

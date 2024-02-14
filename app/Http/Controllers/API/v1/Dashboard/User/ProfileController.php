@@ -95,13 +95,13 @@ class ProfileController extends UserBaseController
      */
     public function delete(): JsonResponse
     {
+        /** @var User $user */
         $user = $this->userRepository->userByUUID(auth('sanctum')->user()->uuid);
 
         if (empty($user)) {
             return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
         }
 
-        /** @var User $user */
         if ($user->hasRole('user')) {
             $user->paymentProcess()->forceDelete();
             $user->transactions()->forceDelete();
@@ -144,7 +144,10 @@ class ProfileController extends UserBaseController
      */
     public function passwordUpdate(PasswordUpdateRequest $request): JsonResponse
     {
-        $result = $this->userService->updatePassword(auth('sanctum')->user()->uuid, $request->input('password'));
+        $result = $this->userService->updatePassword(
+            auth('sanctum')->user()->uuid,
+            $request->input('password')
+        );
 
         if (!data_get($result, 'status')) {
             return $this->onErrorResponse($result);

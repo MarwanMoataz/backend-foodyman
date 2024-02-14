@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Currency;
 
 use App\Http\Requests\BaseRequest;
-use Illuminate\Validation\Rule;
 
 class StoreRequest extends BaseRequest
 {
@@ -15,13 +14,7 @@ class StoreRequest extends BaseRequest
     public function rules(): array
     {
         return [
-            'title'     => [
-                'required',
-                'string',
-                Rule::unique('currencies', 'title')
-                    ->ignore(request()->route('currency'), 'id')
-                    ->whereNull('deleted_at')
-            ],
+            'title'     => 'required|string',
             'symbol'    => 'required|string',
             'position'  => 'string|in:before,after',
             'rate'      => 'numeric',

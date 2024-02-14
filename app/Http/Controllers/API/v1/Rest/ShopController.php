@@ -103,17 +103,13 @@ class ShopController extends RestBaseController
     /**
      * Display the specified resource.
      *
-     * @param FilterParamsRequest $request
      * @return JsonResponse
      */
-    public function takes(FilterParamsRequest $request): JsonResponse
+    public function takes(): JsonResponse
     {
-        $shop = $this->shopRepository->takes($request->all());
+        $shop = $this->shopRepository->takes();
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
-            $shop
-        );
+        return $this->successResponse(__('web.shop_found'), $shop);
     }
 
     /**
@@ -267,7 +263,7 @@ class ShopController extends RestBaseController
      */
     public function galleries(int $id): ShopGalleryResource|JsonResponse
     {
-        /** @var ShopGallery|null $shopGallery */
+        /** @var ShopGallery $shopGallery */
         $shopGallery = ShopGallery::with([
             'galleries',
         ])
@@ -368,6 +364,7 @@ class ShopController extends RestBaseController
      */
     public function mainReviews(FilterParamsRequest $request): JsonResponse|AnonymousResourceCollection
     {
+        /** @var Shop $shop */
         $shop = Shop::whereNull('parent_id')->select('parent_id', 'id')->first();
 
         if (empty($shop)) {
@@ -377,7 +374,6 @@ class ShopController extends RestBaseController
             ]);
         }
 
-        /** @var Shop $shop */
         return $this->reviews($shop->id, $request);
     }
 
@@ -410,6 +406,7 @@ class ShopController extends RestBaseController
      */
     public function mainReviewsGroupByRating(): JsonResponse|array
     {
+        /** @var Shop $shop */
         $shop = Shop::whereNull('parent_id')->select('parent_id', 'id')->first();
 
         if (empty($shop)) {
@@ -419,7 +416,6 @@ class ShopController extends RestBaseController
             ]);
         }
 
-        /** @var Shop $shop */
         return $this->reviewsGroupByRating($shop->id);
     }
 }

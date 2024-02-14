@@ -9,14 +9,12 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 
 class BrandExport extends BaseExport implements FromCollection, WithHeadings
 {
-    public function __construct(private array $filter = []) {}
-
     /**
      * @return Collection
      */
     public function collection(): Collection
     {
-        $brands = Brand::filter($this->filter)->orderBy('id')->get();
+        $brands = Brand::orderBy('id')->get();
 
         return $brands->map(fn (Brand $brand) => $this->tableBody($brand));
     }
@@ -27,7 +25,7 @@ class BrandExport extends BaseExport implements FromCollection, WithHeadings
     public function headings(): array
     {
         return [
-            'Id',
+            '#',
             'Uu Id',
             'Title',
             'Active',

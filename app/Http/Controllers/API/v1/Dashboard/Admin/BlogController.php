@@ -132,6 +132,7 @@ class BlogController extends AdminBaseController
      */
     public function setActiveStatus(string $uuid): JsonResponse
     {
+        /** @var Blog $blog */
         $blog = Blog::with([
             'translation' => fn($q) => $q->where('locale', $this->language)->orWhereNotNull('title')
         ])
@@ -144,7 +145,6 @@ class BlogController extends AdminBaseController
             ]);
         }
 
-        /** @var Blog $blog */
         $result = $this->service->setActiveStatus($blog);
 
         if (!data_get($result, 'status')) {

@@ -27,7 +27,7 @@ class RestInsertProductsRequest extends BaseRequest
                 'integer',
                 Rule::exists('stocks', 'id')->whereNull('deleted_at')
             ],
-            'products.*.quantity'   => 'required|numeric',
+            'products.*.quantity'   => 'required|integer',
             'products.*.parent_id'  => [
                 'nullable',
                 'integer',

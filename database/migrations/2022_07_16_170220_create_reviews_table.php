@@ -11,7 +11,7 @@ class CreateReviewsTable extends Migration
      *
      * @return void
      */
-    public function up(): void
+    public function up()
     {
         Schema::create('reviews', function (Blueprint $table) {
             $table->id();
@@ -38,7 +38,7 @@ class CreateReviewsTable extends Migration
      *
      * @return void
      */
-    public function down(): void
+    public function down()
     {
         Schema::dropIfExists('reviews');
     }

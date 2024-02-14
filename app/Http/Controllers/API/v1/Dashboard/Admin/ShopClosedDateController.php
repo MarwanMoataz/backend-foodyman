@@ -40,9 +40,9 @@ class ShopClosedDateController extends AdminBaseController
     {
         Artisan::call('remove:expired:closed:dates');
 
-        $model = $this->repository->paginate($request->all());
+        $shopsWithClosedDays = $this->repository->paginate($request->all());
 
-        return ShopResource::collection($model);
+        return ShopResource::collection($shopsWithClosedDays);
     }
 
     /**
@@ -76,10 +76,7 @@ class ShopClosedDateController extends AdminBaseController
         $shop = Shop::whereUuid($uuid)->first();
 
         if (empty($shop)) {
-            return $this->onErrorResponse([
-                'code'      => ResponseError::ERROR_404,
-                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
-            ]);
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
         }
 
         $shopClosedDate = $this->repository->show($shop->id);
@@ -102,10 +99,7 @@ class ShopClosedDateController extends AdminBaseController
         $shop = Shop::whereUuid($uuid)->first();
 
         if (empty($shop)) {
-            return $this->onErrorResponse([
-                'code'      => ResponseError::ERROR_404,
-                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
-            ]);
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
         }
 
         $result = $this->service->update($shop->id, $request->validated());
@@ -114,9 +108,7 @@ class ShopClosedDateController extends AdminBaseController
             return $this->onErrorResponse($result);
         }
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_UPDATED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_has_been_successfully_updated'), []);
     }
 
     /**
@@ -129,9 +121,7 @@ class ShopClosedDateController extends AdminBaseController
     {
         $this->service->delete($request->input('ids', []));
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_has_been_successfully_delete'), []);
     }
 
     /**
@@ -141,9 +131,7 @@ class ShopClosedDateController extends AdminBaseController
     {
         $this->service->dropAll();
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_was_successfully_updated'), []);
     }
 
     /**
@@ -153,9 +141,7 @@ class ShopClosedDateController extends AdminBaseController
     {
         $this->service->truncate();
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_was_successfully_updated'), []);
     }
 
     /**
@@ -165,9 +151,7 @@ class ShopClosedDateController extends AdminBaseController
     {
         $this->service->restoreAll();
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_was_successfully_updated'), []);
     }
 
 }

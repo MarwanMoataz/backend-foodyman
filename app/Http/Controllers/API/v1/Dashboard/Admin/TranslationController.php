@@ -2,20 +2,16 @@
 
 namespace App\Http\Controllers\API\v1\Dashboard\Admin;
 
-use App\Exports\TranslationExport;
 use App\Helpers\ResponseError;
 use App\Http\Requests\FilterParamsRequest;
 use App\Http\Requests\Translation\StoreRequest;
 use App\Http\Requests\Translation\UpdateRequest;
 use App\Http\Resources\TranslationTableResource;
-use App\Imports\TranslationImport;
 use App\Models\Translation;
 use App\Services\TranslationService\TranslationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Excel;
-use Throwable;
 
 class TranslationController extends AdminBaseController
 {
@@ -127,39 +123,6 @@ class TranslationController extends AdminBaseController
         }
 
         return $this->successResponse(__('web.record_has_been_successfully_updated'), []);
-    }
-
-    public function import(FilterParamsRequest $request): JsonResponse
-    {
-        try {
-            Excel::import(new TranslationImport, $request->file('file'));
-            return $this->successResponse('Successfully imported');
-        } catch (Throwable $e) {
-            return $this->errorResponse(
-                ResponseError::ERROR_508,
-                __('errors.' . ResponseError::ERROR_508, locale: $this->language) . ' | ' . $e->getMessage()
-            );
-        }
-    }
-
-    public function export(): JsonResponse
-    {
-        $fileName = 'export/translations.xlsx';
-
-        $productExport = new TranslationExport;
-
-        try {
-            Excel::store($productExport, $fileName, 'public', \Maatwebsite\Excel\Excel::XLSX);
-
-            return $this->successResponse('Successfully exported', [
-                'path'      => 'public/export',
-                'file_name' => $fileName
-            ]);
-        } catch (Throwable $e) {
-            $this->error($e);
-        }
-
-        return $this->errorResponse('Error during export');
     }
 
     /**

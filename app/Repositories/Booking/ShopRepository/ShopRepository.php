@@ -13,7 +13,7 @@ use App\Models\Settings;
 use App\Models\ShopTag;
 use App\Models\Stock;
 use App\Repositories\CoreRepository;
-use Illuminate\Support\Facades\Cache;
+use Cache;
 use DB;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -49,7 +49,7 @@ class ShopRepository extends CoreRepository
                     );
 
                 },
-                'bonus' => fn($q) => $q->where('expired_at', '>', now())->where('status', true)
+                'bonus' => fn($q) => $q->where('expired_at', '>=', now())
                     ->select([
                         'bonusable_type',
                         'bonusable_id',
@@ -94,27 +94,27 @@ class ShopRepository extends CoreRepository
                 'logo_img',
                 'background_img',
                 'status',
+                'type',
                 'delivery_time',
                 'open',
                 'visibility',
                 'location',
             ])
             ->withCount('reviews')
-			->when(data_get($filter, 'rating'), function (Builder $q, $rating) {
+            ->when(data_get($filter, 'rating'), function (Builder $q, $rating) {
 
-				$rtg = [
-					0 => data_get($rating, 0, 0),
-					1 => data_get($rating, 1, 5),
-				];
+                $rtg = [
+                    0 => data_get($rating, 0, 0),
+                    1 => data_get($rating, 1, 5),
+                ];
 
-				$q
-					->withAvg([
-						'reviews' => fn(Builder $b) => $b->whereBetween('rating', $rtg)
-					], 'rating')
-					->having('reviews_avg_rating', '>=', $rtg[0])
-					->having('reviews_avg_rating', '<=', $rtg[1]);
+                $q->withAvg([
+                    'reviews' => fn(Builder $b) => $b->whereBetween('rating', $rtg)
+                ], 'rating')->whereHas('reviews',
+                    fn(Builder $b) => $b->whereBetween('rating', $rtg)
+                );
 
-			}, fn($q) => $q->withAvg('reviews', 'rating'))
+            }, fn($q) => $q->withAvg('reviews', 'rating'))
             ->when(data_get($filter, 'order_by'), function (Builder $query, $orderBy) {
 
                 switch ($orderBy) {
@@ -189,7 +189,7 @@ class ShopRepository extends CoreRepository
             'translation' => fn($q) => $q->where('locale', $this->language)->orWhere('locale', $locale),
             'bookingWorkingDays',
             'bookingClosedDates',
-            'bonus' => fn($q) => $q->where('expired_at', '>', now())->where('status', true)
+            'bonus' => fn($q) => $q->where('expired_at', '>=', now())
                 ->select([
                     'bonusable_type',
                     'bonusable_id',
@@ -232,20 +232,13 @@ class ShopRepository extends CoreRepository
     {
         return Cache::remember('products-avg-prices', 86400, function () {
 
-			$min = Stock::where('price', '>=', 0)
-				->where('quantity', '>', 0)
-				->whereHas('countable', fn($q) => $q->where('status', Product::PUBLISHED)->where('active', true))
-				->min('price');
+            $min = Stock::where('price', '>', 0)->whereHas('countable')->min('price');
+            $max = Stock::where('price', '>', 0)->whereHas('countable')->max('price');
 
-			$max = Stock::where('price', '>=', 0)
-				->where('quantity', '>', 0)
-				->whereHas('countable', fn($q) => $q->where('status', Product::PUBLISHED)->where('active', true))
-				->max('price');
-
-			return [
-				'min' => $min * $this->currency,
-				'max' => ($min === $max ? $max + 1 : $max) * $this->currency,
-			];
+            return [
+                'min' => $min * $this->currency,
+                'max' => ($min === $max ? $max + 1 : $max) * $this->currency,
+            ];
         });
     }
 
@@ -404,7 +397,7 @@ class ShopRepository extends CoreRepository
 
         $recommended = Product::with([
             'stock' => fn($q) => $q->with([
-                'bonus' => fn($q) => $q->where('expired_at', '>', now())->where('status', true)->select([
+                'bonus' => fn($q) => $q->where('expired_at', '>', now())->select([
                     'id', 'expired_at', 'bonusable_type', 'bonusable_id',
                     'bonus_quantity', 'value', 'type', 'status'
                 ]),
@@ -415,7 +408,7 @@ class ShopRepository extends CoreRepository
                 'price',
                 'quantity',
                 'addon',
-            ])->where('addon', false)->where('quantity', '>', 0),
+            ])->where('quantity', '>', 0),
             'translation' => fn($q) => $q->where('locale', $this->language),
             'discounts' => fn($q) => $q
                 ->where('start', '<=', today())
@@ -425,8 +418,8 @@ class ShopRepository extends CoreRepository
             ->where('active', true)
             ->where('addon', false)
             ->where('status', Product::PUBLISHED)
-            ->whereHas('stock', fn($q) => $q->where('addon', false)->where('quantity', '>', 0)
-                ->whereHas('orderDetails', '>', $recommendedCount)
+            ->whereHas('stock', fn($q) => $q->where('quantity', '>', 0)
+                ->whereHas('orderDetails', fn($q) => $q->whereNull('deleted_at'), '>', $recommendedCount)
             )
             ->whereHas('translation', fn($q) => $q->where('locale', $this->language))
             ->select([
@@ -438,8 +431,6 @@ class ShopRepository extends CoreRepository
                 'status',
                 'active',
                 'addon',
-                'min_qty',
-                'max_qty',
             ])
             ->find($ids);
 
@@ -460,7 +451,7 @@ class ShopRepository extends CoreRepository
                             ->where('end', '>=', today())
                             ->where('active', 1),
                     ])
-                        ->whereHas('stock', fn($q) => $q->where('quantity', '>', 0)->where('addon', false))
+                        ->whereHas('stock', fn($q) => $q->where('quantity', '>', 0))
                         ->where('active', true)
                         ->where('addon', false)
                         ->where('status', Product::PUBLISHED)
@@ -480,7 +471,7 @@ class ShopRepository extends CoreRepository
                         ]),
                     'products.translation' => fn($q) => $q->where('locale', $this->language),
                     'products.stock' => fn($q) => $q->with([
-                        'bonus' => fn($q) => $q->where('expired_at', '>', now())->where('status', true)->select([
+                        'bonus' => fn($q) => $q->where('expired_at', '>', now())->select([
                                 'id', 'expired_at', 'bonusable_type', 'bonusable_id',
                                 'bonus_quantity', 'value', 'type', 'status'
                             ])
@@ -560,7 +551,7 @@ class ShopRepository extends CoreRepository
             'translation' => fn($q) => $q->where('locale', $this->language),
             'stocks' => fn($q) => $q->select('id', 'countable_type', 'countable_id', 'price', 'quantity', 'addon')
                 ->with([
-                    'bonus' => fn($q) => $q->where('expired_at', '>', now())->where('status', true)->select([
+                    'bonus' => fn($q) => $q->where('expired_at', '>', now())->select([
                         'id', 'expired_at', 'bonusable_type', 'bonusable_id',
                         'bonus_quantity', 'value', 'type', 'status'
                     ])
@@ -616,6 +607,7 @@ class ShopRepository extends CoreRepository
                 'id',
                 'uuid',
                 'tax',
+                'bar_code',
                 'status',
                 'active',
                 'img',
@@ -626,12 +618,12 @@ class ShopRepository extends CoreRepository
             ),
             'stocks.addons.addon.stock',
             'stocks.addons.addon.translation' => fn($q) => $q->where('locale', $this->language),
-            'stocks.bonus' => fn($q) => $q->where('expired_at', '>', now())->where('status', true)->select([
+            'stocks.bonus' => fn($q) => $q->where('expired_at', '>', now())->select([
                 'id', 'expired_at', 'bonusable_type', 'bonusable_id',
                 'bonus_quantity', 'value', 'type', 'status'
             ]),
             'stocks.bonus.stock',
-            'stocks.bonus.stock.countable:id,uuid,tax,status,active,img,min_qty,max_qty',
+            'stocks.bonus.stock.countable:id,uuid,tax,bar_code,status,active,img,min_qty,max_qty',
             'stocks.bonus.stock.countable.translation' => fn($q) => $q->select('id', 'product_id', 'title', 'locale'),
             'stocks.stockExtras.group.translation' => fn($q) => $q->where('locale', $this->language),
             'discounts' => fn($q) => $q->where('start', '<=', today())->where('end', '>=', today())->where('active', 1),

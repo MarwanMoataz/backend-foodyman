@@ -12,7 +12,7 @@ class CreateShopWorkingDays extends Migration
      *
      * @return void
      */
-    public function up(): void
+    public function up()
     {
         Schema::create('shop_working_days', function (Blueprint $table) {
             $table->id();
@@ -36,7 +36,7 @@ class CreateShopWorkingDays extends Migration
      *
      * @return void
      */
-    public function down(): void
+    public function down()
     {
         Schema::dropIfExists('shop_working_days');
     }

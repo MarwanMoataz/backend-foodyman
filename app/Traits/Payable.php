@@ -3,16 +3,9 @@
 namespace App\Traits;
 
 use App\Models\Transaction;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Database\Eloquent\Relations\MorphOne;
 
-/**
- * @property-read Transaction|null $transaction
- * @property-read Collection|Transaction[] $transactions
- * @property-read int $transactions_count
- */
 trait Payable
 {
     public function createTransaction(array $data): Model
@@ -32,10 +25,5 @@ trait Payable
     public function transactions(): MorphMany
     {
         return $this->morphMany(Transaction::class, 'payable');
-    }
-
-    public function transaction(): MorphOne
-    {
-        return $this->morphOne(Transaction::class, 'payable');
     }
 }

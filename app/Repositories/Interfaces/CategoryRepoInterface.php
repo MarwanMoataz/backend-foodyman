@@ -4,8 +4,6 @@ namespace App\Repositories\Interfaces;
 
 interface CategoryRepoInterface
 {
-    public function categories(array $filter = []);
-
     public function childrenCategory(int $id);
 
     public function categoryDetails(int $id);

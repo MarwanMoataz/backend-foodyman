@@ -6,7 +6,6 @@ use App\Helpers\ResponseError;
 use App\Models\OrderStatus;
 use App\Services\CoreService;
 use Exception;
-use Illuminate\Support\Facades\Cache;
 
 class OrderStatusService extends CoreService
 {

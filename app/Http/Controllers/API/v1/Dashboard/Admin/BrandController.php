@@ -15,7 +15,6 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Facades\Excel;
 use Throwable;
 
@@ -43,12 +42,9 @@ class BrandController extends AdminBaseController
      */
     public function index(Request $request): JsonResponse
     {
-        $brands = $this->brandRepository->brandsList($request->merge(['is_admin' => true])->all());
+        $brands = $this->brandRepository->brandsList($request->all());
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
-            BrandResource::collection($brands)
-        );
+        return $this->successResponse(__('web.brands_list'), BrandResource::collection($brands));
     }
 
     /**
@@ -59,11 +55,7 @@ class BrandController extends AdminBaseController
      */
     public function paginate(Request $request): AnonymousResourceCollection
     {
-        $brands = $this->brandRepository->brandsPaginate($request->merge(['is_admin' => true])->all());
-
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
-        }
+        $brands = $this->brandRepository->brandsPaginate($request->all());
 
         return BrandResource::collection($brands);
     }
@@ -83,7 +75,7 @@ class BrandController extends AdminBaseController
         }
 
         return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_CREATED, locale: $this->language),
+            __('web.record_successfully_created'),
             BrandResource::make(data_get($result, 'data'))
         );
     }
@@ -96,10 +88,7 @@ class BrandController extends AdminBaseController
      */
     public function show(Brand $brand): JsonResponse
     {
-        return $this->successResponse(
-            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
-            BrandResource::make($brand->loadMissing(['metaTags']))
-        );
+        return $this->successResponse(__('web.brand_found'), BrandResource::make($brand->loadMissing(['metaTags'])));
     }
 
     /**
@@ -118,7 +107,7 @@ class BrandController extends AdminBaseController
         }
 
         return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_UPDATED),
+            __('web.record_successfully_updated'),
             BrandResource::make(data_get($result, 'data'))
         );
     }
@@ -134,16 +123,10 @@ class BrandController extends AdminBaseController
         $result = $this->brandService->delete($request->input('ids', []));
 
         if (!empty(data_get($result, 'data'))) {
-            $code = data_get($result, 'code');
-            return $this->onErrorResponse([
-                'code'    => $code,
-                'message' => __("errors.$code", locale: $this->language)
-            ]);
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_507]);
         }
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_has_been_successfully_delete'));
     }
 
     /**
@@ -153,9 +136,7 @@ class BrandController extends AdminBaseController
     {
         $this->brandService->dropAll();
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_was_successfully_updated'), []);
     }
 
     /**
@@ -165,9 +146,7 @@ class BrandController extends AdminBaseController
     {
         $this->brandService->truncate();
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_was_successfully_updated'), []);
     }
 
     /**
@@ -177,9 +156,7 @@ class BrandController extends AdminBaseController
     {
         $this->brandService->restoreAll();
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_was_successfully_updated'), []);
     }
 
     /**
@@ -190,7 +167,7 @@ class BrandController extends AdminBaseController
      */
     public function brandsSearch(Request $request): AnonymousResourceCollection
     {
-        $brands = $this->brandRepository->brandsSearch($request->merge(['is_admin' => true])->all());
+        $brands = $this->brandRepository->brandsSearch($request->all());
 
         return BrandResource::collection($brands);
     }
@@ -213,35 +190,32 @@ class BrandController extends AdminBaseController
         return BrandResource::make($brand);
     }
 
-    public function fileExport(FilterParamsRequest $request): JsonResponse
+    public function fileExport(): JsonResponse
     {
-        $fileName = 'export/brands.xlsx';
+        $fileName = 'export/brands.xls';
 
         try {
-            Excel::store(new BrandExport($request->merge(['is_admin' => true])->all()), $fileName, 'public', \Maatwebsite\Excel\Excel::XLSX);
+            Excel::store(new BrandExport, $fileName, 'public');
 
             return $this->successResponse('Successfully exported', [
                 'path' => 'public/export',
                 'file_name' => $fileName
             ]);
         } catch (Throwable $e) {
-            return $this->onErrorResponse([
-                'code' => ResponseError::ERROR_400,
-                'message' => "Error during export" . $e->getMessage()
-            ]);
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_400, 'message' => "Error during export" . $e->getMessage()]);
         }
     }
 
     public function fileImport(Request $request): JsonResponse
     {
         try {
-            Excel::import(new BrandImport($request->input('shop_id')), $request->file('file'));
+            Excel::import(new BrandImport, $request->file('file'));
 
             return $this->successResponse('Successfully imported');
-        } catch (Exception $e) {
+        } catch (Exception $exception) {
             return $this->errorResponse(
                 ResponseError::ERROR_508,
-                __('errors.' . ResponseError::ERROR_508, locale: $this->language) . ' | ' . $e->getMessage()
+                'Excel format incorrect or data invalid'
             );
         }
     }

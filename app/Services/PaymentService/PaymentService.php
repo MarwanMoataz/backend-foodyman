@@ -63,6 +63,7 @@ class PaymentService extends CoreService
      */
     public function setActive(int $id): array
     {
+        /** @var Payment $payment */
         $payment = $this->model()->find($id);
 
         if (empty($payment)) {
@@ -73,7 +74,6 @@ class PaymentService extends CoreService
             ];
         }
 
-        /** @var Payment $payment */
         $payment->update(['active' => !$payment->active]);
 
         return [

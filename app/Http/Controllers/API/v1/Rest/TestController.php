@@ -117,9 +117,6 @@ class TestController extends Controller
 
     public function bosyaTest(Request $request)
     {
-//        dd(DB::table('categories')->where('status', '!=', Category::PUBLISHED)->update([
-//            'status' => Category::PUBLISHED
-//        ]));
 //        $translations = [
 //            "dashboard" => "Dashboard",
 //            "shops" => "Shops",

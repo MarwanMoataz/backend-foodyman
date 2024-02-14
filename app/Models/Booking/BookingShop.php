@@ -64,6 +64,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
+ * @property int|null $type
  * @property array|null $delivery_time
  * @property-read Collection|Gallery[] $galleries
  * @property-read int|null $galleries_count
@@ -144,6 +145,19 @@ class BookingShop extends Model
         'approved',
         'rejected',
         'inactive'
+    ];
+
+    const TYPE_SHOP         = 1;
+    const TYPE_RESTAURANT   = 2;
+
+    const TYPES = [
+        self::TYPE_SHOP         => 'shop',
+        self::TYPE_RESTAURANT   => 'restaurant',
+    ];
+
+    const TYPES_BY = [
+        'shop'          => self::TYPE_SHOP,
+        'restaurant'    => self::TYPE_RESTAURANT,
     ];
 
     protected $casts = [
@@ -325,6 +339,9 @@ class BookingShop extends Model
             ->when(data_get($filter, 'status'), function ($q, $status) {
                 $q->where('status', $status);
             })
+            ->when(data_get($filter, 'type'), function ($q, $type) {
+                $q->where('type', data_get(self::TYPES_BY, $type));
+            })
             ->when(isset($filter['open']), function ($q) use($filter) {
                 $q->where('open', $filter['open']);
             })
@@ -341,31 +358,26 @@ class BookingShop extends Model
             })
             ->when(data_get($filter, 'bonus'), function (Builder $query) {
                 $query->whereHas('bonus', function ($q) {
-                    $q->where('expired_at', '>', now())->where('status', true);
+                    $q->where('expired_at', '>=', now());
                 });
             })
             ->when(data_get($filter, 'deals'), function (Builder $query) {
-                $query->where(function ($query) {
-                    $query->whereHas('bonus', function ($q) {
-                        $q->where('expired_at', '>', now())->where('status', true);
-                    })->orWhereHas('discounts', function ($q) {
-                        $q->where('end', '>=', now())->where('active', 1);
-                    });
+                $query->whereHas('bonus', function ($q) {
+                    $q->where('expired_at', '>=', now());
+                })->orWhereHas('discounts', function ($q) {
+                    $q->where('end', '>=', now())->where('active', 1);
                 });
             })
             ->when(data_get($filter, 'address'), function ($query) use ($filter, $orders) {
                 $orderBys = ['new', 'old', 'best_sale', 'low_sale', 'high_rating', 'low_rating', 'trust_you'];
-                $orderByIds = implode(', ', array_keys($orders));
+                $orderByIds = implode(',', array_keys($orders));
 
                 $query
                     ->whereHas('deliveryZone')
-                    ->when($orderByIds, function ($builder) use ($orderBys, $filter, $orderByIds) {
-
-                        if (!in_array(data_get($filter, 'order_by'), $orderBys)) {
-                            $builder->orderByRaw(DB::raw("FIELD(shops.id, $orderByIds) ASC"));
-                        }
-
-                    });
+                    ->when($orderByIds && !in_array(data_get($filter, 'order_by'), $orderBys),
+                        function ($builder) use ($filter, $orderByIds, $orders) {
+                            $builder->whereIn('id', array_keys($orders))->orderByRaw("FIELD(shops.id, $orderByIds) DESC");
+                        });
 
             })
             ->when(data_get($filter, 'search'), function ($query, $search) {
@@ -385,9 +397,6 @@ class BookingShop extends Model
                     $q->when(is_array($take), fn($q) => $q->whereIn('id', $take), fn($q) => $q->where('id', $take));
                 });
 
-            })
-            ->when(data_get($filter, 'has_section'), function (Builder $query) {
-                $query->whereHas('shopSections');
             })
             ->when(data_get($filter, 'free_delivery'), function (Builder $q) {
                 $q->where([

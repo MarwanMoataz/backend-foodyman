@@ -28,6 +28,7 @@ class PaymentSeeder extends Seeder
             ['tag' => 'razorpay',     'input' => 7],
             ['tag' => 'stripe',       'input' => 8],
             ['tag' => 'paypal',       'input' => 9],
+            ['tag' => 'MyFatoorah',   'input' => 10],
         ];
 
         foreach ($payments as $payment) {
@@ -41,7 +42,5 @@ class PaymentSeeder extends Seeder
                 $this->error($e);
             }
         }
-
     }
-
 }
