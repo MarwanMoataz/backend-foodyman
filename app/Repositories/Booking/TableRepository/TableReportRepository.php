@@ -58,24 +58,22 @@ class TableReportRepository extends CoreRepository
             /** @var ShopSection $shopSection */
             foreach ($shopSection->tables as $table) {
 
+                /** @var Table $table */
                 $booked     = $table->users->where('status', UserBooking::NEW)->count();
                 $occupied   = $table->users->where('status', UserBooking::ACCEPTED)->count();
 
-                $statistic['booked']    += $booked;
-                $statistic['occupied']  += $occupied;
-
                 if ($occupied > 0) {
+                    $statistic['occupied'] += $occupied;
                     $statistic['occupied_ids'][] = $table->id;
-
                 }
 
                 if ($booked > 0) {
+                    $statistic['booked'] += $booked;
                     $statistic['booked_ids'][] = $table->id;
                 }
 
                 if ($booked === 0) {
                     $statistic['available'] += 1;
-                    $statistic['available_ids'][] = $table->id;
                 }
 
                 foreach ($table->users as $user) {
@@ -83,6 +81,7 @@ class TableReportRepository extends CoreRepository
                     $group = match ($user->status) {
                         UserBooking::NEW        => 'all_booked',
                         UserBooking::ACCEPTED   => 'all_occupied',
+						default					=> null,
                     };
 
                     if (empty($group)) {

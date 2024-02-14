@@ -4,7 +4,6 @@ namespace App\Http\Controllers\API\v1\Dashboard\Seller;
 
 use App\Helpers\ResponseError;
 use App\Http\Requests\ExtraValue\StoreRequest;
-use App\Http\Requests\ExtraValue\UpdateRequest;
 use App\Http\Requests\FilterParamsRequest;
 use App\Http\Resources\ExtraValueResource;
 use App\Repositories\ExtraRepository\ExtraValueRepository;
@@ -38,10 +37,7 @@ class ExtraValueController extends SellerBaseController
      */
     public function index(FilterParamsRequest $request): AnonymousResourceCollection
     {
-        $values = $this->repository->extraValueList(
-            $request->input('active'),
-            $request->input('group_id')
-        );
+        $values = $this->repository->extraValueList($request->merge(['shop_id' => $this->shop->id])->all());
 
         return ExtraValueResource::collection($values);
     }
@@ -61,7 +57,7 @@ class ExtraValueController extends SellerBaseController
         }
 
         return $this->successResponse(
-            __('web.record_has_been_successfully_created'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_CREATED, locale: $this->language),
             ExtraValueResource::make(data_get($result, 'data'))
         );
     }
@@ -77,11 +73,14 @@ class ExtraValueController extends SellerBaseController
         $extraValue = $this->repository->extraValueDetails($id);
 
         if (!$extraValue) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
+            return $this->onErrorResponse([
+                'code'      => ResponseError::ERROR_404,
+                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
+            ]);
         }
 
         return $this->successResponse(
-            __('web.extra_value_found'),
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
             ExtraValueResource::make($extraValue)
         );
     }
@@ -90,12 +89,12 @@ class ExtraValueController extends SellerBaseController
     /**
      * Update the specified resource in storage.
      *
-     * @param UpdateRequest $request
+     * @param StoreRequest $request
      * @param int $id
      * @return JsonResponse
      * @throws Exception
      */
-    public function update(int $id, UpdateRequest $request): JsonResponse
+    public function update(int $id, StoreRequest $request): JsonResponse
     {
         $result = $this->service->update($id, $request->validated());
 
@@ -104,7 +103,7 @@ class ExtraValueController extends SellerBaseController
         }
 
         return $this->successResponse(
-            __('web.record_has_been_successfully_updated'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_UPDATED, locale: $this->language),
             ExtraValueResource::make(data_get($result, 'data'))
         );
     }
@@ -119,7 +118,9 @@ class ExtraValueController extends SellerBaseController
     {
         $this->service->delete($request->input('ids', []));
 
-        return $this->successResponse(__('web.record_has_been_successfully_delete'), []);
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 
     /**
@@ -137,7 +138,7 @@ class ExtraValueController extends SellerBaseController
         }
 
         return $this->successResponse(
-            __('web.record_has_been_successfully_updated'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_UPDATED, locale: $this->language),
             ExtraValueResource::make(data_get($result, 'data'))
         );
     }

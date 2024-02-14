@@ -25,7 +25,7 @@ class UserRepository extends CoreRepository
      */
     public function userById(int $id): ?User
     {
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $this->model()
             ->with('wallet', 'shop', 'point', 'emailSubscription', 'notifications', 'assignReviews', 'invite')
             ->withCount([
@@ -115,7 +115,7 @@ class UserRepository extends CoreRepository
                 'invitations.shop.translation' => fn($q) => $q->select(['id', 'shop_id', 'locale', 'title'])
                                                               ->where('locale', $this->language),
                 'deliveryManSetting',
-                'roles' => fn($q)  => $q->when(data_get($filter, 'role'), function ($q, $role) use($filter) {
+                'roles' => fn($q)  => $q->when(data_get($filter, 'role'), function ($q, $role) {
                     $q->where('name', $role);
                 })
             ])

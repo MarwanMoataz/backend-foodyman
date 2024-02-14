@@ -9,6 +9,7 @@ use App\Traits\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Cache;
 
 class OrderDetailController extends AdminBaseController
 {
@@ -50,10 +51,20 @@ class OrderDetailController extends AdminBaseController
         $orderDetail = $this->repository->orderDetailById($id);
 
         if (empty($orderDetail)) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
+            return $this->onErrorResponse([
+                'code'      => ResponseError::ERROR_404,
+                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
+            ]);
         }
 
-        return $this->successResponse(__('web.language_found'), OrderDetailResource::make($orderDetail));
+        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
+            abort(403);
+        }
+
+        return $this->successResponse(
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
+            OrderDetailResource::make($orderDetail)
+        );
     }
 
 }

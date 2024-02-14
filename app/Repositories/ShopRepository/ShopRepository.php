@@ -6,7 +6,6 @@ use App\Helpers\Utility;
 use App\Http\Resources\BranchProducts\CategoryResource;
 use App\Http\Resources\ProductResource;
 use App\Models\Category;
-use App\Models\Currency;
 use App\Models\DeliveryZone;
 use App\Models\Language;
 use App\Models\Order;
@@ -34,7 +33,7 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
     }
 
     /**
-     * Get all Shops from table```
+     * Get all Shops from table
      */
     public function shopsList(array $filter = []): array|Collection|\Illuminate\Support\Collection
     {
@@ -118,18 +117,6 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
                 ]));
 
             })
-            ->select([
-                'id',
-                'uuid',
-                'logo_img',
-                'background_img',
-                'status',
-                'type',
-                'delivery_time',
-                'open',
-                'visibility',
-                'location',
-            ])
             ->withCount('reviews')
             ->when(data_get($filter, 'rating'), function (Builder $q, $rating) {
 
@@ -138,15 +125,14 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
                     1 => data_get($rating, 1, 5),
                 ];
 
-                $q->withAvg([
-                    'reviews' => fn(Builder $b) => $b->whereBetween('rating', $rtg)
-                ], 'rating')->whereHas('reviews',
-                    fn(Builder $b) => $b->whereBetween('rating', $rtg)
-                );
+                $q
+                    ->withAvg([
+                        'reviews' => fn(Builder $b) => $b->whereBetween('rating', $rtg)
+                    ], 'rating')
+                    ->having('reviews_avg_rating', '>=', $rtg[0])
+                    ->having('reviews_avg_rating', '<=', $rtg[1]);
 
-            },
-                fn($q) => $q->withAvg('reviews', 'rating')
-            )
+            }, fn($q) => $q->withAvg('reviews', 'rating'))
             ->when(data_get($filter, 'order_by'), function (Builder $query, $orderBy) {
 
                 switch ($orderBy) {
@@ -250,13 +236,28 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
     }
 
     /**
+     * @param array $filter
      * @return Collection|array
      */
-    public function takes(): Collection|array
+    public function takes(array $filter): Collection|array
     {
+        $locale = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
+
         return ShopTag::with([
-            'translation' => fn($q) => $q->where('locale', $this->language),
-        ])->get();
+            'translation' => fn($q) => $q->where('locale', $this->language)->orWhere('locale', $locale),
+        ])
+            ->when(data_get($filter, 'category_id'), function ($query, $categoryId) {
+                $query->whereHas('assignShopTags', function ($q) use ($categoryId) {
+                    $q->whereHas('shop', function ($q) use ($categoryId) {
+                        $q
+                            ->select('id')
+                            ->whereHas('categories', function ($q) use ($categoryId) {
+                                $q->select('category_id', 'categories.shop_id')->where('category_id', $categoryId);
+                            });
+                    });
+                });
+            })
+            ->get();
     }
 
     /**
@@ -437,87 +438,70 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
     public function productsRecPaginate(array $filter): AnonymousResourceCollection
     {
         $shopId     = data_get($filter, 'shop_id');
-        $locale     = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
-        $lang       = $this->language ?? $locale;
         $recPerPage = data_get($filter, 'recPerPage', 10);
-        $page       = data_get($filter, 'perPage', 10);
-        $currency   = request('currency_id') ?
-            Currency::currenciesList()->where('id', (int)request('currency_id'))->first() :
-            Currency::currenciesList()->where('default', 1)->first();
-
-        $key = "branch_recommended_products_first_currency_id=$currency?->rate&lang=$lang&page=$page&recPerPage=$recPerPage&shop_id=$shopId";
+        $locale     = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
 
         $recommendedCount = (int)(Settings::adminSettings()->where('key', 'recommended_count')->first()?->value ?? 2);
 
-        return Cache::remember($key, 3600, function () use ($filter, $shopId, $recommendedCount, $recPerPage) {
-            $products = Product::filter($filter)
-                ->with([
-                    'stock' => fn($q) => $q
-                        ->where('addon', false)
-                        ->where('quantity', '>', 0)
-                        ->whereHas('orderDetails', fn($q) => $q->whereNull('deleted_at'), '>', $recommendedCount),
-                    'translation' => fn($q) => $q->where('locale', $this->language),
-                    'discounts' => fn($q) => $q
-                        ->where('start', '<=', today())
-                        ->where('end', '>=', today())
-                        ->where('active', 1),
-                ])
-                ->withCount([
-                    'stocks' => fn($q) => $q->where('quantity', '>', 0)
-                ])
-                ->where('active', true)
-                ->where('addon',  false)
-                ->where('status', Product::PUBLISHED)
-                ->whereHas('stock', fn($q) => $q
+        $products = Product::filter($filter)
+            ->with([
+                'stock' => fn($q) => $q
                     ->where('addon', false)
                     ->where('quantity', '>', 0)
-                    ->whereHas('orderDetails', fn($q) => $q->whereNull('deleted_at'), '>', $recommendedCount)
-                )
-                ->whereHas('translation', fn($q) => $q->where('locale', $this->language))
-                ->select([
-                    'id',
-                    'uuid',
-                    'category_id',
-                    'shop_id',
-                    'img',
-                    'status',
-                    'active',
-                    'addon',
-                ])
-                ->where('shop_id', $shopId)
-                ->paginate($recPerPage);
+                    ->whereHas('orderDetails', fn($q) => $q, '>', $recommendedCount),
+                'translation' => fn($q) => $q->where('locale', $this->language),
+                'unit.translation' => fn($q) => $q->where('locale', $this->language)
+                    ->orWhere('locale', $locale)
+                    ->select('id', 'locale', 'title', 'unit_id'),
+                'discounts' => fn($q) => $q
+                    ->where('start', '<=', today())
+                    ->where('end', '>=', today())
+                    ->where('active', 1),
+            ])
+            ->withCount([
+                'stocks' => fn($q) => $q->where('quantity', '>', 0)
+            ])
+            ->where('active', true)
+            ->where('addon',  false)
+            ->where('status', Product::PUBLISHED)
+            ->whereHas('stock', fn($q) => $q
+                ->where('addon', false)
+                ->where('quantity', '>', 0)
+                ->whereHas('orderDetails', fn($q) => $q, '>', $recommendedCount)
+            )
+            ->whereHas('translation', fn($q) => $q->where('locale', $this->language))
+            ->select([
+                'id',
+                'uuid',
+                'category_id',
+                'shop_id',
+                'img',
+                'status',
+                'active',
+                'addon',
+                'interval',
+                'unit_id'
+            ])
+            ->where('shop_id', $shopId)
+            ->paginate($recPerPage);
 
-            return ProductResource::collection($products);
-        });
+        return ProductResource::collection($products);
     }
 
     /**
      * @param array $filter
-     * @return mixed
+     * @return AnonymousResourceCollection
      * @throws InvalidArgumentException
      */
-    public function products(array $filter): mixed
+    public function products(array $filter): AnonymousResourceCollection
     {
         $shopId         = data_get($filter, 'shop_id');
         $locale         = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
-        $lang           = $this->language ?? $locale;
         $productPerPage = data_get($filter, 'productPerPage', 10);
-        $perPage        = data_get($filter, 'page', 1);
-        $page           = data_get($filter, 'perPage', 10);
-        $orderBy        = data_get($filter, 'order_by');
-        $currency       = request('currency_id') ?
-            Currency::currenciesList()->where('id', (int)request('currency_id'))->first() :
-            Currency::currenciesList()->where('default', 1)->first();
 
-        $key = "branch_products_first_currency_id=$currency?->rate&lang=$lang&page=$page&perPage=$perPage&productPerPage=$productPerPage&shop_id=$shopId&order_by=$orderBy";
+        $categories = $this->firstRememberProduct($filter, $locale, $shopId, $productPerPage);
 
-        return Cache::remember($key, 3600, function () use ($filter, $locale, $shopId, $productPerPage) {
-
-            $categories = $this->firstRememberProduct($filter, $locale, $shopId, $productPerPage);
-
-            return CategoryResource::collection($categories);
-
-        });
+        return CategoryResource::collection($categories);
     }
 
     /**
@@ -532,6 +516,7 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
         $categories = Category::where([
             ['type', Category::MAIN],
             ['active', true],
+            ['status', Category::PUBLISHED],
         ])
             ->with([
                 'translation' => function ($q) use($locale) {
@@ -542,6 +527,9 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
                 },
                 'products' => fn($q) => $q
                     ->with([
+                        'unit.translation' => fn($q) => $q->where('locale', $this->language)
+                            ->orWhere('locale', $locale)
+                            ->select('id', 'locale', 'title', 'unit_id'),
                         'discounts' => fn($q) => $q
                             ->where('start', '<=', today())
                             ->where('end', '>=', today())
@@ -567,6 +555,7 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
                         'uuid',
                         'category_id',
                         'shop_id',
+                        'brand_id',
                         'img',
                         'status',
                         'shop_id',
@@ -576,11 +565,15 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
                         'addon',
                         'visibility',
                         'vegetarian',
+                        'interval',
+                        'unit_id'
                     ])
                     ->where('active', true)
                     ->where('addon', false)
                     ->where('status', Product::PUBLISHED)
                     ->where('shop_id', $shopId)
+                    ->when(data_get($filter, 'brand_id'), fn($q, $brandId) => $q->where('brand_id', $brandId))
+                    ->when(data_get($filter, 'brand_ids.*'), fn($q) => $q->whereIn('brand_id', $filter['brand_ids']))
                     ->when(data_get($filter, 'rating'), function (Builder $q, $rating) {
 
                         $rtg = [
@@ -588,11 +581,14 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
                             1 => data_get($rating, 1, 5),
                         ];
 
-                        $q->whereHas('reviews', fn(Builder $b) => $b->whereBetween('rating', $rtg));
+                        $q
+                            ->withAvg([
+                                'reviews' => fn(Builder $b) => $b->whereBetween('rating', $rtg)
+                            ], 'rating')
+                            ->having('reviews_avg_rating', '>=', $rtg[0])
+                            ->having('reviews_avg_rating', '<=', $rtg[1]);
 
-                    },
-                        fn($q) => $q->withAvg('reviews', 'rating')
-                    )
+                    }, fn($q) => $q->withAvg('reviews', 'rating'))
                     ->when(data_get($filter, 'order_by'), function (Builder $query, $orderBy) {
 
                         switch ($orderBy) {
@@ -609,10 +605,10 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
                                 $query->withCount('orderDetails')->orderBy('order_details_count');
                                 break;
                             case 'high_rating':
-                                $query->orderBy('reviews_avg_rating', 'desc');
+                                $query->orderBy('id', 'desc')->orderBy('reviews_avg_rating', 'desc');
                                 break;
                             case 'low_rating':
-                                $query->orderBy('reviews_avg_rating');
+                                $query->orderBy('id')->orderBy('reviews_avg_rating');
                                 break;
                             case 'trust_you':
                                 $ids = implode(', ', array_keys(Cache::get('shop-recommended-ids', [])));
@@ -622,12 +618,10 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
                                 break;
                         }
 
-                    },
-                        fn($q) => $q->orderBy(
-                            data_get($filter, 'column', 'id'),
-                            data_get($filter, 'sort', 'desc')
-                        )
-                    )
+                    }, fn($q) => $q->orderBy(
+                        data_get($filter, 'column', 'id'),
+                        data_get($filter, 'sort', 'desc')
+                    ))
             ])
             ->whereHas('products', fn($q) => $q
                 ->select([
@@ -635,6 +629,7 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
                     'uuid',
                     'category_id',
                     'shop_id',
+                    'brand_id',
                     'img',
                     'status',
                     'shop_id',
@@ -644,24 +639,15 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
                     'addon',
                     'visibility',
                     'vegetarian',
+                    'interval',
                 ])
                 ->where('active', true)
                 ->where('addon', false)
                 ->where('status', Product::PUBLISHED)
                 ->where('shop_id', $shopId)
+                ->when(data_get($filter, 'brand_id'), fn($q, $brandId) => $q->where('brand_id', $brandId))
+                ->when(data_get($filter, 'brand_ids.*'), fn($q) => $q->whereIn('brand_id', $filter['brand_ids']))
                 ->whereHas('stock', fn($q) => $q->where('quantity', '>', 0)->where('addon', false))
-                ->when(data_get($filter, 'rating'), function (Builder $q, $rating) {
-
-                    $rtg = [
-                        0 => data_get($rating, 0, 0),
-                        1 => data_get($rating, 1, 5),
-                    ];
-
-                    $q->whereHas('reviews', fn(Builder $b) => $b->whereBetween('rating', $rtg));
-
-                },
-                    fn($q) => $q->withAvg('reviews', 'rating')
-                )
             )
             ->whereHas('translation', fn($q) => $q->where('locale', $this->language)->orWhere('locale', $locale))
             ->paginate(data_get($filter, 'perPage', 10));
@@ -676,6 +662,9 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
                         ->where('end', '>=', today())
                         ->where('active', 1),
                     'translation' => fn($q) => $q->where('locale', $this->language),
+                    'unit.translation' => fn($q) => $q->where('locale', $this->language)
+                        ->orWhere('locale', $locale)
+                        ->select('id', 'locale', 'title', 'unit_id'),
                     'stock' => fn($q) => $q->with([
                         'bonus' => fn($q) => $q->where('expired_at', '>', now())->select([
                             'id', 'expired_at', 'bonusable_type', 'bonusable_id',
@@ -689,6 +678,10 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
                         ->where('addon', false),
 
                 ])
+                ->where('active', true)
+                ->where('addon', false)
+                ->where('status', Product::PUBLISHED)
+                ->where('shop_id', $shopId)
                 ->whereHas('stock', fn($q) => $q->where('quantity', '>', 0)->where('addon', false))
                 ->withCount('stocks')
                 ->select([
@@ -705,22 +698,9 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
                     'addon',
                     'visibility',
                     'vegetarian',
+                    'interval',
+                    'unit_id',
                 ])
-                ->when(data_get($filter, 'rating'), function (Builder $q, $rating) {
-
-                    $rtg = [
-                        0 => data_get($rating, 0, 0),
-                        1 => data_get($rating, 1, 5),
-                    ];
-
-                    $q->withAvg([
-                        'reviews' => fn(Builder $b) => $b->whereBetween('rating', $rtg)
-                    ], 'rating'
-                    )->whereHas('reviews', fn(Builder $b) => $b->whereBetween('rating', $rtg));
-
-                },
-                    fn($q) => $q->withAvg('reviews', 'rating')
-                )
                 ->when(data_get($filter, 'order_by'), function (Builder $query, $orderBy) {
 
                     switch ($orderBy) {
@@ -735,12 +715,6 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
                             break;
                         case 'low_sale':
                             $query->withCount('orderDetails')->orderBy('order_details_count');
-                            break;
-                        case 'high_rating':
-                            $query->orderBy('reviews_avg_rating', 'desc');
-                            break;
-                        case 'low_rating':
-                            $query->orderBy('reviews_avg_rating');
                             break;
                         case 'trust_you':
                             $ids = implode(', ', array_keys(Cache::get('shop-recommended-ids', [])));
@@ -881,8 +855,8 @@ class ShopRepository extends CoreRepository implements ShopRepoInterface
                 'id',
                 'uuid',
                 'category_id',
-                'shop_id',
                 'brand_id',
+                'shop_id',
                 'unit_id',
                 'keywords',
                 'tax',

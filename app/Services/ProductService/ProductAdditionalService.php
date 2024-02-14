@@ -60,7 +60,6 @@ class ProductAdditionalService extends CoreService
      */
     public function createOrUpdateExtras(string $uuid, array $data): array
     {
-        /** @var Product $product */
         $product = $this->model()->firstWhere('uuid', $uuid);
 
         if (empty($product)) {
@@ -70,6 +69,7 @@ class ProductAdditionalService extends CoreService
         try {
             $extras = data_get($data, 'extras', []);
 
+            /** @var Product $product */
             $product->extras()->sync(is_array($extras) ? $extras : []);
 
             return ['status' => true, 'code' => ResponseError::NO_ERROR, 'data' => Product::find($product->id)];

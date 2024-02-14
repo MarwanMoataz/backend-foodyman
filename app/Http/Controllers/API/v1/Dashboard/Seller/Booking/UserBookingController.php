@@ -64,11 +64,9 @@ class UserBookingController extends SellerBaseController
      */
     public function show(UserBooking $userBooking): JsonResponse
     {
-        $result = $this->repository->show($userBooking);
-
         return $this->successResponse(
             __('errors.' . ResponseError::SUCCESS, locale: $this->language),
-            UserBookingResource::make($result)
+            UserBookingResource::make($this->repository->show($userBooking))
         );
     }
 

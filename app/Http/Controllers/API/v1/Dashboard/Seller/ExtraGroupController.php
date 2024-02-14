@@ -30,7 +30,7 @@ class ExtraGroupController extends SellerBaseController
      */
     public function index(FilterParamsRequest $request): AnonymousResourceCollection
     {
-        $extras = $this->repository->extraGroupList($request->all());
+        $extras = $this->repository->extraGroupList($request->merge(['shop_id' => $this->shop->id])->all());
 
         return ExtraGroupResource::collection($extras);
     }
@@ -43,14 +43,17 @@ class ExtraGroupController extends SellerBaseController
      */
     public function store(StoreRequest $request): JsonResponse
     {
-        $result = $this->service->create($request->validated());
+        $validated = $request->validated();
+        $validated['shop_id'] = $this->shop->id;
+
+        $result = $this->service->create($validated);
 
         if (!data_get($result, 'status')) {
             return $this->onErrorResponse($result);
         }
 
         return $this->successResponse(
-            __('web.extras_list'),
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
             ExtraGroupResource::make(data_get($result, 'data'))
         );
 
@@ -64,14 +67,18 @@ class ExtraGroupController extends SellerBaseController
      */
     public function show(int $id): JsonResponse
     {
+        /** @var ExtraGroup $extra */
         $extra = $this->repository->extraGroupDetails($id);
 
-        if (!$extra) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
+        if (!$extra || !empty($extra->shop_id) && $extra->shop_id !== $this->shop->id) {
+            return $this->onErrorResponse([
+                'code'      => ResponseError::ERROR_404,
+                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
+            ]);
         }
 
         return $this->successResponse(
-            trans('web.extra_found', [], request('lang')),
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
             ExtraGroupResource::make($extra->loadMissing([
                 'translations',
                 'extraValues.group.translation' => fn($q) => $q->where('locale', $this->language)
@@ -88,14 +95,23 @@ class ExtraGroupController extends SellerBaseController
      */
     public function update(int $id, StoreRequest $request): JsonResponse
     {
-        $result = $this->service->update($id, $request->validated());
+        $extraGroup = ExtraGroup::find($id);
+
+        if (!$extraGroup || $extraGroup->shop_id !== $this->shop->id) {
+            return $this->onErrorResponse([
+                'code'      => ResponseError::ERROR_404,
+                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
+            ]);
+        }
+
+        $result = $this->service->update($extraGroup, $request->validated());
 
         if (!data_get($result, 'status')) {
             return $this->onErrorResponse($result);
         }
 
         return $this->successResponse(
-            __('web.record_has_been_successfully_updated'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_UPDATED, locale: $this->language),
             ExtraGroupResource::make(data_get($result, 'data'))
         );
     }
@@ -108,13 +124,18 @@ class ExtraGroupController extends SellerBaseController
      */
     public function destroy(FilterParamsRequest $request): JsonResponse
     {
-        $hasValues = $this->service->delete($request->input('ids'));
+        $hasValues = $this->service->delete($request->input('ids'), $this->shop->id);
 
         if ($hasValues > 0) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_504]);
+            return $this->onErrorResponse([
+                'code'    => ResponseError::ERROR_504,
+                'message' => __('errors.' . ResponseError::ERROR_504, locale: $this->language)
+            ]);
         }
 
-        return $this->successResponse(__('web.record_has_been_successfully_delete'), []);
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 
     /**
@@ -124,7 +145,10 @@ class ExtraGroupController extends SellerBaseController
      */
     public function typesList(): JsonResponse
     {
-        return $this->successResponse(__('web.extra_groups_types'), ExtraGroup::TYPES);
+        return $this->successResponse(
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
+            ExtraGroup::TYPES
+        );
     }
 
     /**
@@ -135,14 +159,14 @@ class ExtraGroupController extends SellerBaseController
      */
     public function setActive(int $id): JsonResponse
     {
-        $result = $this->service->setActive($id);
+        $result = $this->service->setActive($id, $this->shop->id);
 
         if (!data_get($result, 'status')) {
             return $this->onErrorResponse($result);
         }
 
         return $this->successResponse(
-            __('web.record_has_been_successfully_updated'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_UPDATED, locale: $this->language),
             ExtraGroupResource::make(data_get($result, 'data'))
         );
     }

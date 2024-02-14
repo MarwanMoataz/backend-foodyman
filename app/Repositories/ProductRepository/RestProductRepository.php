@@ -21,6 +21,7 @@ class RestProductRepository extends CoreRepository
     {
         /** @var Product $product */
         $product = $this->model();
+        $locale  = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
 
         return $product
             ->filter($filter)
@@ -35,9 +36,13 @@ class RestProductRepository extends CoreRepository
                     ->where('start', '<=', today())
                     ->where('end', '>=', today())
                     ->where('active', 1),
-                'translation' => fn($q) => $q->where('locale', $this->language),
+                'translation' => fn($q) => $q->where('locale', $this->language)->orWhere('locale', $locale),
+                'reviews',
+                'unit.translation' => fn($q) => $q->where('locale', $this->language)
+                    ->orWhere('locale', $locale)
+                    ->select('id', 'locale', 'title', 'unit_id'),
             ])
-            ->whereHas('translation', fn($query) => $query->where('locale', $this->language))
+            ->whereHas('translation', fn($query) => $query->where('locale', $this->language)->orWhere('locale', $locale))
             ->whereHas('stock', fn($q) => $q->where('quantity', '>', 0)->where('addon', false))
             ->when(data_get($filter, 'shop_status'), function ($q, $status) {
                 $q->whereHas('shop', function (Builder $query) use ($status) {
@@ -51,10 +56,12 @@ class RestProductRepository extends CoreRepository
                     1 => data_get($rating, 1, 5),
                 ];
 
-                $q->withAvg([
-                    'reviews' => fn(Builder $b) => $b->whereBetween('rating', $rtg)
-                ], 'rating'
-                )->whereHas('reviews', fn(Builder $b) => $b->whereBetween('rating', $rtg));
+                $q
+                    ->withAvg([
+                        'reviews' => fn(Builder $b) => $b->whereBetween('rating', $rtg)
+                    ], 'rating')
+                    ->having('reviews_avg_rating', '>=', $rtg[0])
+                    ->having('reviews_avg_rating', '<=', $rtg[1]);
 
             }, fn($q) => $q->withAvg('reviews', 'rating'))
             ->when(data_get($filter, 'order_by'), function (Builder $query, $orderBy) {
@@ -95,21 +102,26 @@ class RestProductRepository extends CoreRepository
 
     public function productsMostSold(array $filter = [])
     {
+        $locale  = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
+
         return $this->model()
             ->filter($filter)
             ->updatedDate($this->updatedDate)
-            ->whereHas('translation', function ($q) {
-                $q->where('locale', $this->language);
+            ->whereHas('translation', function ($q) use ($locale) {
+                $q->where('locale', $this->language)->orWhere('locale', $locale);
             })
             ->withAvg('reviews', 'rating')
             ->withCount('orderDetails')
             ->withCount('stocks')
             ->with([
                 'stock' => fn($q) => $q->where('quantity', '>', 0),
-                'stock.stockExtras.group.translation' => fn($q) => $q->where('locale', $this->language),
-                'translation' => fn($q) => $q->where('locale', $this->language),
+                'stock.stockExtras.group.translation' => fn($q) => $q->where('locale', $this->language)->orWhere('locale', $locale),
+                'translation' => fn($q) => $q->where('locale', $this->language)->orWhere('locale', $locale),
+                'unit.translation' => fn($q) => $q->where('locale', $this->language)
+                    ->orWhere('locale', $locale)
+                    ->select('id', 'locale', 'title', 'unit_id'),
             ])
-            ->whereHas('stock', function ($item){
+            ->whereHas('stock', function ($item) {
                 $item->where('quantity', '>', 0);
             })
             ->whereHas('shop', function ($item) {
@@ -127,6 +139,7 @@ class RestProductRepository extends CoreRepository
     public function productsDiscount(array $filter = []): mixed
     {
         $profitable = data_get($filter, 'profitable') ? '=' : '>=';
+        $locale  = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
 
         return $this->model()
             ->with([
@@ -135,9 +148,12 @@ class RestProductRepository extends CoreRepository
                     ->where('end', '>=', today())
                     ->where('active', 1),
                 'stocks' => fn($q) => $q->where('quantity', '>', 0),
-                'stocks.stockExtras.group.translation' => fn($q) => $q->where('locale', $this->language),
-                'translation' => fn($q) => $q->where('locale', $this->language)
+                'stocks.stockExtras.group.translation' => fn($q) => $q->where('locale', $this->language)->orWhere('locale', $locale),
+                'translation' => fn($q) => $q->where('locale', $this->language)->orWhere('locale', $locale)
                     ->select('id', 'product_id', 'locale', 'title'),
+                'unit.translation' => fn($q) => $q->where('locale', $this->language)
+                    ->orWhere('locale', $locale)
+                    ->select('id', 'locale', 'title', 'unit_id'),
             ])
             ->withAvg('reviews', 'rating')
             ->whereActive(1)
@@ -148,8 +164,8 @@ class RestProductRepository extends CoreRepository
                     ->whereDate('start', '<=', today())
                     ->whereDate('end', $profitable, today()->format('Y-m-d'));
             })
-            ->whereHas('translation', function ($q) {
-                $q->where('locale', $this->language);
+            ->whereHas('translation', function ($q) use ($locale) {
+                $q->where('locale', $this->language)->orWhere('locale', $locale);
             })
             ->whereHas('stocks', function ($item){
                 $item->where('quantity', '>', 0);
@@ -207,6 +223,9 @@ class RestProductRepository extends CoreRepository
                     ->where('end', '>=', today())
                     ->where('active', 1),
                 'translation' => fn($q) => $q->where('locale', $this->language)->orWhere('locale', $locale),
+                'unit.translation' => fn($q) => $q->where('locale', $this->language)
+                    ->orWhere('locale', $locale)
+                    ->select('id', 'locale', 'title', 'unit_id'),
             ])
             ->where('active', true)
             ->where('addon', false)

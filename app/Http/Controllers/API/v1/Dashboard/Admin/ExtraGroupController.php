@@ -11,6 +11,7 @@ use App\Repositories\ExtraRepository\ExtraGroupRepository;
 use App\Services\ExtraGroupService\ExtraGroupService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Cache;
 
 class ExtraGroupController extends AdminBaseController
 {
@@ -33,7 +34,11 @@ class ExtraGroupController extends AdminBaseController
      */
     public function index(FilterParamsRequest $request): AnonymousResourceCollection
     {
-        $extras = $this->repository->extraGroupList($request->all());
+        $extras = $this->repository->extraGroupList($request->merge(['is_admin' => true])->all());
+
+        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
+            abort(403);
+        }
 
         return ExtraGroupResource::collection($extras);
     }
@@ -53,7 +58,7 @@ class ExtraGroupController extends AdminBaseController
         }
 
         return $this->successResponse(
-            __('web.extras_list'),
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
             ExtraGroupResource::make(data_get($result, 'data'))
         );
 
@@ -70,11 +75,14 @@ class ExtraGroupController extends AdminBaseController
         $extra = $this->repository->extraGroupDetails($id);
 
         if (!$extra) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
+            return $this->onErrorResponse([
+                'code'      => ResponseError::ERROR_404,
+                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
+            ]);
         }
 
         return $this->successResponse(
-            trans('web.extra_found', [], request('lang')),
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
             ExtraGroupResource::make($extra->loadMissing([
                 'translations',
                 'extraValues.group.translation' => fn($q) => $q->where('locale', $this->language),
@@ -91,14 +99,23 @@ class ExtraGroupController extends AdminBaseController
      */
     public function update(int $id, StoreRequest $request): JsonResponse
     {
-        $result = $this->service->update($id, $request->validated());
+        $extraGroup = ExtraGroup::find($id);
+
+        if (!$extraGroup) {
+            return $this->onErrorResponse([
+                'code'      => ResponseError::ERROR_404,
+                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
+            ]);
+        }
+
+        $result = $this->service->update($extraGroup, $request->validated());
 
         if (!data_get($result, 'status')) {
             return $this->onErrorResponse($result);
         }
 
         return $this->successResponse(
-            __('web.record_has_been_successfully_updated'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_UPDATED, locale: $this->language),
             ExtraGroupResource::make(data_get($result, 'data'))
         );
     }
@@ -117,7 +134,9 @@ class ExtraGroupController extends AdminBaseController
             return $this->onErrorResponse(['code' => ResponseError::ERROR_504]);
         }
 
-        return $this->successResponse(__('web.record_has_been_successfully_delete'), []);
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 
     /**
@@ -127,7 +146,10 @@ class ExtraGroupController extends AdminBaseController
      */
     public function typesList(): JsonResponse
     {
-        return $this->successResponse(__('web.extra_groups_types'), ExtraGroup::TYPES);
+        return $this->successResponse(
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
+            ExtraGroup::TYPES
+        );
     }
 
     /**
@@ -145,7 +167,7 @@ class ExtraGroupController extends AdminBaseController
         }
 
         return $this->successResponse(
-            __('web.record_has_been_successfully_updated'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_UPDATED, locale: $this->language),
             ExtraGroupResource::make(data_get($result, 'data'))
         );
     }
@@ -157,7 +179,9 @@ class ExtraGroupController extends AdminBaseController
     {
         $this->service->dropAll();
 
-        return $this->successResponse(__('web.record_was_successfully_updated'), []);
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 
     /**
@@ -167,7 +191,9 @@ class ExtraGroupController extends AdminBaseController
     {
         $this->service->truncate();
 
-        return $this->successResponse(__('web.record_was_successfully_updated'), []);
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 
     /**
@@ -177,7 +203,9 @@ class ExtraGroupController extends AdminBaseController
     {
         $this->service->restoreAll();
 
-        return $this->successResponse(__('web.record_was_successfully_updated'), []);
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 
 }

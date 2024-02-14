@@ -34,6 +34,11 @@ return [
     $e::ERROR_113 => 'Deliveryman doesn\'t have Wallet',
     $e::ERROR_114 => 'Seller doesn\'t have Wallet',
     $e::ERROR_115 => 'Phone not found',
+    $e::ERROR_116 => 'Ads already activated',
+    $e::ERROR_117 => 'Phone is required',
+    $e::ERROR_118 => 'Shop is closed',
+    $e::ERROR_119 => 'Duplicate stock',
+    $e::ERROR_120 => 'Password update error',
 
     $e::ERROR_201 => 'Wrong OTP Code',
     $e::ERROR_202 => 'Too many request, try later',
@@ -73,6 +78,7 @@ return [
     $e::ERROR_431 => 'Active default currency not found',
     $e::ERROR_430 => 'Stock quantity 0',
     $e::ERROR_432 => 'Undefined Type',
+    $e::ERROR_440 => 'Other shop',
 
     $e::ERROR_501 => 'Error during creating',
     $e::ERROR_502 => 'Error during updating',
@@ -86,6 +92,7 @@ return [
     $e::ERROR_510 => 'Address in correct.',
 
 
+
     $e::CONFIRMATION_CODE               => 'Confirmation code :code',
     $e::NEW_ORDER                       => 'New order for you # :id',
     $e::PHONE_OR_EMAIL_NOT_FOUND        => 'Phone or Email not found',
@@ -95,7 +102,7 @@ return [
     $e::SHOP_NOT_FOUND                  => 'Shop not found',
     $e::OTHER_SHOP                      => 'Other shop',
     $e::SHOP_OR_DELIVERY_ZONE           => 'Empty shop or delivery zone',
-    $e::NOT_IN_POLYGON                  => 'Not in polygon',
+    $e::NOT_IN_POLYGON                  => 'Delivery to the selected location is not available',
     $e::CURRENCY_NOT_FOUND              => 'Currency not found',
     $e::LANGUAGE_NOT_FOUND              => 'Language not found',
     $e::CANT_DELETE_ORDERS              => 'Can`t delete orders :ids',

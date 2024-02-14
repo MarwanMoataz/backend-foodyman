@@ -11,6 +11,7 @@ use App\Models\Coupon;
 use App\Models\Currency;
 use App\Models\Language;
 use App\Models\Order;
+use App\Models\Settings;
 use App\Repositories\CoreRepository;
 use App\Services\CartService\CartService;
 use App\Traits\SetCurrency;
@@ -34,14 +35,14 @@ class CartRepository extends CoreRepository
         $userId  = auth('sanctum')->id();
         $locale  = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
 
-        /** @var Cart $cart */
         $cart = $this->model()
             ->with([
-                       'shop:id',
-                       'shop.bonus',
-                       'userCarts.cartDetails',
-                   ])
-            ->where(fn($q) => $q->where('id', $cartId)->orWhere('owner_id', $userId))
+                'shop:id',
+                'shop.bonus' => fn($q) => $q->where('expired_at', '>', now())->where('status', true),
+                'userCarts.cartDetails.stock.bonus' => fn($q) => $q->where('expired_at', '>', now())->where('status', true),
+            ])
+            ->when($cartId, fn($q) => $q->where('id', $cartId))
+            ->when($userId, fn($q) => $q->where('owner_id', $userId))
             ->when($shopId, fn($q) => $q->where('shop_id', $shopId))
             ->first();
 
@@ -49,20 +50,29 @@ class CartRepository extends CoreRepository
             return $cart;
         }
 
+        /** @var Cart $cart */
         (new CartService)->calculateTotalPrice($cart);
 
         $cart = $this->model()->with([
-                                         'userCarts.cartDetails' => fn($q) => $q->whereNull('parent_id'),
-                                         'userCarts.cartDetails.stock.countable.translation' => fn($q) => $q
-                                             ->where('locale', $this->language)->orWhere('locale', $locale),
-                                         'userCarts.cartDetails.stock.stockExtras.group.translation' => fn($q) => $q
-                                             ->where('locale', $this->language)->orWhere('locale', $locale),
-                                         'userCarts.cartDetails.children.stock.countable.translation' => fn($q) => $q
-                                             ->where('locale', $this->language)->orWhere('locale', $locale),
-                                         'userCarts.cartDetails.children.stock.stockExtras.group.translation' => fn($q) => $q
-                                             ->where('locale', $this->language)->orWhere('locale', $locale),
-                                     ])
-            ->where(fn($q) => $q->where('id', $cartId)->orWhere('owner_id', $userId))
+            'shop.bonus' => fn($q) => $q->where('expired_at', '>', now())->where('status', true),
+            'userCarts.cartDetails' => fn($q) => $q->whereNull('parent_id'),
+            'userCarts.cartDetails.stock.bonus' => fn($q) => $q->where('expired_at', '>', now())->where('status', true),
+            'userCarts.cartDetails.stock.countable.unit.translation' => fn($q) => $q
+                ->where('locale', $this->language)->orWhere('locale', $locale),
+            'userCarts.cartDetails.stock.countable.translation' => fn($q) => $q
+                ->where('locale', $this->language)->orWhere('locale', $locale),
+            'userCarts.cartDetails.stock.stockExtras.group.translation' => fn($q) => $q
+                ->where('locale', $this->language)->orWhere('locale', $locale),
+
+            'userCarts.cartDetails.children.stock.countable.unit.translation' => fn($q) => $q
+                ->where('locale', $this->language)->orWhere('locale', $locale),
+            'userCarts.cartDetails.children.stock.countable.translation' => fn($q) => $q
+                ->where('locale', $this->language)->orWhere('locale', $locale),
+            'userCarts.cartDetails.children.stock.stockExtras.group.translation' => fn($q) => $q
+                ->where('locale', $this->language)->orWhere('locale', $locale),
+        ])
+            ->when($cartId, fn($q) => $q->where('id', $cartId))
+            ->when($userId, fn($q) => $q->where('owner_id', $userId))
             ->when($shopId, fn($q) => $q->where('shop_id', $shopId))
             ->first();
 
@@ -87,20 +97,31 @@ class CartRepository extends CoreRepository
         $locale   = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
         $currency = Currency::currenciesList()->where('id', data_get($data, 'currency_id'))->first();
         $cart = Cart::with([
-            'shop:id,location,tax,price,price_per_km,uuid,logo_img,status,type',
+            'shop:id,location,tax,price,price_per_km,uuid,logo_img,status',
             'shop.translation' => fn($q) => $q->where('locale', $this->language)->orWhere('locale', $locale),
+            'shop.bonus' => fn($q) => $q->where('expired_at', '>', now())->where('status', true),
             'userCarts.cartDetails' => fn($q) => $q->whereNull('parent_id'),
+            'userCarts.cartDetails.stock.countable.unit.translation' => fn($q) => $q
+                ->where('locale', $this->language)->orWhere('locale', $locale),
+            'userCarts.cartDetails.stock.countable.translation' => fn($q) => $q
+                ->where('locale', $this->language)
+                ->orWhere('locale', $locale),
+            'userCarts.cartDetails.stock.bonus' => fn($q) => $q->where('expired_at', '>', now())->where('status', true),
             'userCarts.cartDetails.stock.countable.discounts' => fn($q) => $q->where('start', '<=', today())
                 ->where('end', '>=', today())
                 ->where('active', 1),
             'userCarts.cartDetails.stock.stockExtras.group.translation' => fn($q) => $q
-                ->where('locale', $this->language)->orWhere('locale', $locale),
-            'userCarts.cartDetails.stock.countable.translation' => fn($q) => $q
+                ->where('locale', $this->language)
+                ->orWhere('locale', $locale),
+
+            'userCarts.cartDetails.children.stock.countable.unit.translation' => fn($q) => $q
                 ->where('locale', $this->language)->orWhere('locale', $locale),
             'userCarts.cartDetails.children.stock.countable.translation' => fn($q) => $q
-                ->where('locale', $this->language)->orWhere('locale', $locale),
+                ->where('locale', $this->language)
+                ->orWhere('locale', $locale),
             'userCarts.cartDetails.children.stock.stockExtras.group.translation' => fn($q) => $q
-                ->where('locale', $this->language)->orWhere('locale', $locale),
+                ->where('locale', $this->language)
+                ->orWhere('locale', $locale),
         ])
             ->withCount('userCarts')
             ->find($id);
@@ -127,12 +148,12 @@ class CartRepository extends CoreRepository
             ]);
         }
 
-        $totalTax    = 0;
-        $price       = 0;
-        $receiptPrice = 0;
-        $discount    = 0;
-        $cartDetails = data_get(data_get($cart->userCarts, '*.cartDetails', []), 0, []);
-        $inReceipts = [];
+        $totalTax     = 0;
+        $price        = 0;
+//        $receiptPrice = 0;
+        $discount     = 0;
+        $cartDetails  = data_get(data_get($cart->userCarts, '*.cartDetails', []), 0, []);
+        $inReceipts   = [];
 
         foreach ($cart->userCarts as $userCart) {
 
@@ -143,7 +164,9 @@ class CartRepository extends CoreRepository
 
             foreach ($userCart->cartDetails as $cartDetail) {
 
-                if (empty($cartDetail->stock)) {
+                if (empty($cartDetail->stock) || $cartDetail->quantity === 0) {
+
+                    $cartDetail->children()->delete();
                     $cartDetail->delete();
                     continue;
                 }
@@ -154,17 +177,27 @@ class CartRepository extends CoreRepository
                 $discount += $cartDetail->rate_discount;
 
                 if (!$cartDetail->bonus) {
-                    $inReceipts[$cartDetail->stock_id] = $cartDetail->quantity;
-                    $receiptPrice += $cartDetail->price;
+
+                    if (isset($inReceipts[$cartDetail->stock_id])) {
+                        $inReceipts[$cartDetail->stock_id] += $cartDetail->quantity;
+                    } else {
+                        $inReceipts[$cartDetail->stock_id] = $cartDetail->quantity;
+                    }
+
+//                    $receiptPrice += $cartDetail->price;
                 }
 
                 foreach ($cartDetail->children as $child) {
 
                     if (!$child->bonus) {
 
-                        $receiptPrice += !isset($inReceipts[$child->stock_id]) ? $child->price : 0;
+//                        $receiptPrice += !isset($inReceipts[$child->stock_id]) ? $child->price : 0;
 
-                        $inReceipts[$child->stock_id] = $child->quantity;
+                        if (isset($inReceipts[$child->stock_id])) {
+                            $inReceipts[$child->stock_id] += $child->quantity;
+                        } else {
+                            $inReceipts[$child->stock_id] = $child->quantity;
+                        }
 
                     }
 
@@ -182,10 +215,22 @@ class CartRepository extends CoreRepository
         // recalculate shop bonus
         $receiptDiscount = (new CartService)->recalculateReceipt($cart, $inReceipts) * $rate;
 
-        $totalPrice  = $cart->rate_total_price;
         $discount   += $receiptDiscount;
+        $totalPrice  = $cart->rate_total_price + $discount;
 
-        $coupon = Coupon::checkCoupon(data_get($data, 'coupon'))->first();
+        $helper      = new Utility;
+        $km          = $helper->getDistance($cart->shop->location, data_get($data, 'address', []));
+
+        $deliveryFee = data_get($data, 'type') === Order::DELIVERY ?
+            $helper->getPriceByDistance($km, $cart->shop, $rate) : 0;
+
+        $totalPrice  -= $discount;
+
+        $shopTax     = max((($totalPrice) / $rate) / 100 * $cart->shop->tax, 0) * $rate;
+        $serviceFee  = (double)Settings::adminSettings()->where('key', 'service_fee')->first()?->value ?: 0;
+        $serviceFee  *= $rate;
+
+        $coupon = Coupon::checkCoupon(data_get($data, 'coupon'), $cart->shop_id)->first();
 
         $couponPrice = 0;
 
@@ -195,25 +240,19 @@ class CartRepository extends CoreRepository
             $totalPrice -= ($couponPrice * $rate);
         }
 
-        $helper      = new Utility;
-        $km          = $helper->getDistance($cart->shop->location, data_get($data, 'address', []));
-
-        $deliveryFee = data_get($data, 'type') === Order::DELIVERY ?
-            $helper->getPriceByDistance($km, $cart->shop, $rate) : 0;
-
-        $shopTax     = max((($totalPrice - $discount) / $rate) / 100 * $cart->shop->tax, 0) * $rate;
-
         return [
             'status' => true,
             'code'   => ResponseError::NO_ERROR,
             'data'   => [
                 'products'          => CartDetailResource::collection($cartDetails),
-                'total_tax'         => $totalTax,
-                'price'             => $price, // un discounted
+                'total_tax'         => $shopTax,
+                'price'             => $price,
                 'total_shop_tax'    => $shopTax,
-                'total_price'       => max($totalPrice + $deliveryFee + $shopTax, 0),
+                'total_price'       => max($totalPrice + $deliveryFee + $shopTax + $serviceFee, 0),
                 'total_discount'    => $discount,
                 'delivery_fee'      => $deliveryFee,
+                'km'                => $km,
+                'service_fee'       => $serviceFee,
                 'rate'              => $rate,
                 'coupon_price'      => $couponPrice,
                 'receipt_discount'  => $receiptDiscount,
