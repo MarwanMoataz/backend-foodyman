@@ -28,7 +28,7 @@ use Illuminate\Support\Collection;
  * @property Shop|null $shop
  * @property ShopTranslation|null $translation
  * @property int|null $translations_count
- * @property Collection|Table[] $tables
+ * @property Table|null $tables
  * @property int|null $tables_count
  * @property Collection|ShopTranslation[] $translations
  * @method static Builder|self newModelQuery()
@@ -71,15 +71,7 @@ class ShopSection extends Model
     }
 
     public function scopeFilter($query, $filter) {
-        $query
-            ->when(data_get($filter, 'search'), function ($q, $search) {
-                $q
-                    ->where('id', 'LIKE', "%$search%")
-                    ->orWhereHas('translations', function ($q) use ($search) {
-                        $q->where('title', 'LIKE', "%$search%");
-                    });
-            })
-            ->when(data_get($filter, 'shop_id'), fn($q, $shopId) => $q->where('shop_id', $shopId));
+        $query->when(data_get($filter, 'shop_id'), fn($q, $shopId) => $q->where('shop_id', $shopId));
     }
 
 }

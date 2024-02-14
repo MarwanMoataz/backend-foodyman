@@ -5,6 +5,7 @@ use App\Http\Controllers\API\v1\{GalleryController, PushNotificationController, 
 use App\Http\Controllers\API\v1\Auth\{LoginController, RegisterController, VerifyAuthController};
 use App\Http\Controllers\API\v1\Dashboard\{Admin, Deliveryman, Payment, Seller, User, Waiter, Cook};
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\API\PaymentMyfatouraController;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,6 +18,12 @@ use Illuminate\Support\Facades\Route;
 |
 */
 Route::group(['prefix' => 'v1', 'middleware' => ['block.ip']], function () {
+    Route::post('testapi',[RegisterController::class, 'testapi']);
+    Route::group(['prefix' => 'payment/myfatoura'], function () {
+        Route::post('',   [PaymentMyfatouraController::class, 'index']);
+        Route::get('callback',     [PaymentMyfatouraController::class, 'callback']);
+        Route::get('error',        [PaymentMyfatouraController::class, 'error']);
+    });
     // Methods without AuthCheck
     Route::post('/auth/register',                       [RegisterController::class, 'register'])
         ->middleware('sessions');
@@ -104,7 +111,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['block.ip']], function () {
         Route::get('products/discount',             [Rest\ProductController::class, 'discountProducts']);
         Route::get('products/ids',                  [Rest\ProductController::class, 'productsByIDs']);
         Route::get('products/{uuid}',               [Rest\ProductController::class, 'show']);
-        Route::get('products/file/read',            [Rest\ProductController::class, 'fileRead']);
 
         /* Categories */
         Route::get('categories/types',              [Rest\CategoryController::class, 'types']);
@@ -193,6 +199,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['block.ip']], function () {
         Route::get('receipts/paginate',             [Rest\ReceiptController::class, 'paginate']);
         Route::get('receipts/{id}',                 [Rest\ReceiptController::class, 'show']);
 
+
         /* Order Statuses */
         Route::get('order-statuses',                [Rest\OrderStatusController::class, 'index']);
         Route::get('order-statuses/select',         [Rest\OrderStatusController::class, 'select']);
@@ -221,16 +228,13 @@ Route::group(['prefix' => 'v1', 'middleware' => ['block.ip']], function () {
             ->where('type', implode('|', Page::TYPES));
 
         Route::apiResource('orders',                Rest\OrderController::class)->except('index');
-        Route::post('orders/update-tips/{id}',                [Rest\OrderController::class, 'updateTips']);
+        Route::get('orders/table/{id}',                       [Rest\OrderController::class, 'showByTableId']);
         Route::post('orders/review/{id}',                     [Rest\OrderController::class, 'addOrderReview']);
 
         Route::post('notifications',                          [PushNotificationController::class, 'restStore']);
-
-        Route::get('orders/table/{id}',             		  [Rest\OrderController::class, 'showByTableId']);
-        Route::get('orders/deliveryman/{id}',          		  [Rest\OrderController::class, 'showDeliveryman']);
     });
 
-    Route::group(['prefix' => 'payments', 'as' => 'payment.'], function () {
+    Route::group(['prefix' => 'payments', 'middleware' => ['sanctum.check'], 'as' => 'payment.'], function () {
 
         /* Transactions */
         Route::post('{type}/{id}/transactions', [Payment\TransactionController::class, 'store']);
@@ -251,6 +255,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['block.ip']], function () {
             ->only(['index', 'show']);
         Route::post('notifications/{id}/read-at',   [PushNotificationController::class, 'readAt']);
         Route::post('notifications/read-all',       [PushNotificationController::class, 'readAll']);
+
 
         // USER BLOCK
         Route::group(['prefix' => 'user', 'middleware' => ['sanctum.check'], 'as' => 'user.'], function () {
@@ -332,6 +337,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['block.ip']], function () {
             Route::get('order-flw-process', [Payment\FlutterWaveController::class, 'orderProcessTransaction']);
 
             Route::get('order-paytabs-process', [Payment\PayTabsController::class, 'orderProcessTransaction']);
+            Route::get('order-MyFatoorah-process', [Payment\MyFatoorahController::class, 'orderProcessTransaction']);
+
         });
 
         // DELIVERYMAN BLOCK
@@ -424,11 +431,9 @@ Route::group(['prefix' => 'v1', 'middleware' => ['block.ip']], function () {
             Route::get('categories/search',                 [Seller\CategoryController::class, 'categoriesSearch']);
             Route::get('categories/paginate',               [Seller\CategoryController::class, 'paginate']);
             Route::get('categories/select-paginate',        [Seller\CategoryController::class, 'selectPaginate']);
-            Route::get('my-categories/select-paginate',     [Seller\CategoryController::class, 'mySelectPaginate']);
             Route::post('categories/import',                [Seller\CategoryController::class, 'fileImport']);
             Route::apiResource('categories',       Seller\CategoryController::class);
             Route::delete('categories/delete',              [Seller\CategoryController::class, 'destroy']);
-            Route::post('categories/{uuid}/active',         [Seller\CategoryController::class, 'changeActive']);
 
             Route::get('brands/export',                     [Seller\BrandController::class, 'fileExport']);
             Route::post('brands/import',                    [Seller\BrandController::class, 'fileImport']);
@@ -451,13 +456,12 @@ Route::group(['prefix' => 'v1', 'middleware' => ['block.ip']], function () {
             Route::get('products/parent-paginate',      [Seller\ProductController::class, 'parentPaginate']);
             Route::get('products/search',               [Seller\ProductController::class, 'productsSearch']);
             Route::post('products/{uuid}/stocks',       [Seller\ProductController::class, 'addInStock']);
-            Route::get('stocks/{uuid}/status',          [Seller\ProductController::class, 'setActiveStock']);
             Route::post('products/{uuid}/properties',   [Seller\ProductController::class, 'addProductProperties']);
             Route::post('products/{uuid}/extras',       [Seller\ProductController::class, 'addProductExtras']);
             Route::get('stocks/select-paginate',        [Seller\ProductController::class, 'selectStockPaginate']);
             Route::post('products/{uuid}/active',       [Seller\ProductController::class, 'setActive']);
             Route::delete('products/delete',            [Seller\ProductController::class, 'destroy']);
-            Route::apiResource('products',    Seller\ProductController::class);
+            Route::apiResource('products',    Seller\ProductController::class)->except('store');
 
             /* Seller Coupon */
             Route::get('coupons/paginate',              [Seller\CouponController::class, 'paginate']);
@@ -554,10 +558,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['block.ip']], function () {
             Route::delete('payouts/delete', [Seller\PayoutsController::class, 'destroy']);
 
             /* Report Orders */
-            Route::get('order/report',                  [Seller\OrderReportController::class, 'report']);
-            Route::get('orders/report/chart',           [Seller\OrderReportController::class, 'reportChart']);
-            Route::get('orders/report/transactions',    [Seller\OrderReportController::class, 'reportTransactions']);
-            Route::get('orders/report/paginate',        [Seller\OrderReportController::class, 'reportChartPaginate']);
+            Route::get('order/report',              [Seller\OrderReportController::class, 'report']);
+            Route::get('orders/report/paginate',    [Seller\OrderReportController::class, 'reportPaginate']);
 
             /* Reviews */
             Route::get('reviews/paginate',          [Seller\ReviewController::class, 'paginate']);
@@ -644,9 +646,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['block.ip']], function () {
             Route::get('categories/select-paginate',        [Admin\CategoryController::class, 'selectPaginate']);
             Route::post('categories/import',                [Admin\CategoryController::class, 'fileImport']);
             Route::apiResource('categories',      Admin\CategoryController::class);
-            Route::post('category-input/{uuid}',            [Admin\CategoryController::class, 'changeInput']);
-            Route::post('categories/{uuid}/active',         [Admin\CategoryController::class, 'changeActive']);
-            Route::post('categories/{uuid}/status',         [Admin\CategoryController::class, 'changeStatus']);
             Route::delete('categories/delete',              [Admin\CategoryController::class, 'destroy']);
             Route::get('categories/drop/all',               [Admin\CategoryController::class, 'dropAll']);
             Route::get('categories/restore/all',            [Admin\CategoryController::class, 'restoreAll']);
@@ -804,8 +803,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['block.ip']], function () {
 
             /* Translations */
             Route::get('translations/paginate',         [Admin\TranslationController::class, 'paginate']);
-            Route::post('translations/import',          [Admin\TranslationController::class, 'import']);
-            Route::get('translations/export',           [Admin\TranslationController::class, 'export']);
             Route::apiResource('translations',Admin\TranslationController::class);
             Route::get('translations/drop/all',         [Admin\TranslationController::class, 'dropAll']);
             Route::get('translations/restore/all',      [Admin\TranslationController::class, 'restoreAll']);
@@ -990,7 +987,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['block.ip']], function () {
             Route::get('categories/report/chart',   [Admin\CategoryController::class,   'reportChart']);
 
             /* Report Extras */
-            Route::get('extras/report/paginate',    [Admin\ProductController::class,   'extrasReportPaginate']);
+//            Route::get('extras/report/paginate',    [Admin\ProductController::class,   'extrasReportPaginate']);
 
             /* Report Stocks */
             Route::get('stocks/report/paginate',    [Admin\ProductController::class,    'stockReportPaginate']);
@@ -1001,7 +998,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['block.ip']], function () {
 
             /* Report Orders */
             Route::get('orders/report/chart',    [Admin\OrderController::class, 'reportChart']);
-            Route::get('orders/report/transactions', [Admin\OrderController::class, 'reportTransactions']);
             Route::get('orders/report/paginate', [Admin\OrderController::class, 'reportChartPaginate']);
 
             /* Report Revenues */
@@ -1068,6 +1064,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['block.ip']], function () {
         Route::any('flw/payment',          [Payment\FlutterWaveController::class, 'paymentWebHook']);
         Route::any('mercado-pago/payment', [Payment\MercadoPagoController::class, 'paymentWebHook']);
         Route::any('paystack/payment',     [Payment\PayStackController::class, 'paymentWebHook']);
+        Route::any('MyFatoorah/payment',    [Payment\MyFatoorahController::class,   'paymentWebHook']);
+
     });
 });
 

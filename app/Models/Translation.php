@@ -47,7 +47,7 @@ class Translation extends Model
             $q->where('group', $array['group']);
         })->when(isset($array['locale']), function ($q)  use ($array) {
             $q->where('locale', $array['locale']);
-        })->when(isset($array['deleted_at']), function ($q) {
+        })->when(isset($filter['deleted_at']), function ($q) {
             $q->onlyTrashed();
         });
     }

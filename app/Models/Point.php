@@ -51,11 +51,10 @@ class Point extends Model
         'updated_at'    => 'datetime:Y-m-d H:i:s',
     ];
 
-    public static function getActualPoint(string $amount, int $shopId)
+    public static function getActualPoint(string $amount)
     {
         $point = self::where('active', 1)
             ->where('value', '<=', (int) $amount)
-            ->where('shop_id', $shopId)
             ->orderByDesc('value')
             ->first();
 

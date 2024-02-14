@@ -3,12 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\Language;
-use App\Models\Notification;
 use App\Models\Shop;
 use App\Models\ShopTag;
 use App\Models\ShopTranslation;
 use App\Models\User;
-use App\Services\UserServices\UserWalletService;
 use DB;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
@@ -167,20 +165,7 @@ class UserSeeder extends Seeder
         ];
 
         foreach ($users as $user) {
-
-            try {
-                $user = User::updateOrCreate(['id' => data_get($user, 'id')], $user);
-
-                (new UserWalletService)->create($user);
-
-                $id = Notification::where('type', Notification::PUSH)
-                    ->select(['id', 'type'])
-                    ->first()
-                    ?->id;
-
-                $user->notifications()->sync([$id]);
-            } catch (Throwable) {}
-
+            User::updateOrInsert(['id' => data_get($user, 'id')], $user);
         }
 
         User::find(102)->syncRoles('user');

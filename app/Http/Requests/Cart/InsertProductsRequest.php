@@ -31,12 +31,20 @@ class InsertProductsRequest extends BaseRequest
                 'integer',
                 Rule::exists('stocks', 'id')->whereNull('deleted_at')
             ],
-            'products.*.quantity'   => 'required|numeric',
+            'products.*.quantity'   => 'required|integer',
             'products.*.parent_id'  => [
                 'nullable',
                 'integer',
                 Rule::exists('stocks', 'id')->where('addon', 0)->whereNull('deleted_at')
             ],
+          //'products.*.addons'     => 'array',
+          //'products.*.addons.*'   => 'array',
+          //'products.*.addons.*.stock_id'   => [
+          //    'nullable',
+          //    'integer',
+          //    Rule::exists('stocks', 'id')->where('addon', 0)->whereNull('deleted_at')
+          //],
+          //'products.*.addons.*.quantity'   => 'min:1|integer'
         ];
     }
 }

@@ -7,6 +7,7 @@ use App\Traits\Loadable;
 use App\Traits\Reviewable;
 use App\Traits\SetCurrency;
 use Database\Factories\ShopFactory;
+use DB;
 use Eloquent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -375,15 +376,10 @@ class Shop extends Model
 
                 $query
                     ->whereHas('deliveryZone')
-                    ->when($orderByIds, function ($builder) use ($filter, $orderByIds, $orders, $orderBys) {
-
-                        $builder->whereIn('id', array_keys($orders));
-
-                        if (!in_array(data_get($filter, 'order_by'), $orderBys)) {
-                            $builder->orderByRaw("FIELD(shops.id, $orderByIds) ASC");
-                        }
-
-                    });
+                    ->when($orderByIds && !in_array(data_get($filter, 'order_by'), $orderBys),
+                        function ($builder) use ($filter, $orderByIds, $orders) {
+                            $builder->whereIn('id', array_keys($orders))->orderByRaw("FIELD(shops.id, $orderByIds) DESC");
+                        });
 
             })
             ->when(data_get($filter, 'search'), function ($query, $search) {

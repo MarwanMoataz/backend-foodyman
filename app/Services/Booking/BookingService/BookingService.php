@@ -84,7 +84,9 @@ class BookingService extends CoreService
         return [
             'status'  => false,
             'code'    => ResponseError::ERROR_503,
-            'message' => __('errors.' . ResponseError::CANT_DELETE_IDS, ['ids' => implode(', ', $errorIds)], $this->language)
+            'message' => __('errors.' . ResponseError::CANT_DELETE_IDS, [
+                'ids' => implode(', ', $errorIds)
+            ], $this->language)
         ];
     }
 

@@ -28,8 +28,9 @@ class OrderReportResource extends JsonResource
             'tax'                           => $this->when($this->rate_tax, $this->rate_tax),
             'commission_fee'                => $this->when($this->rate_commission_fee, $this->rate_commission_fee),
             'status'                        => $this->when($this->status, $this->status),
-            'delivery_fee'                  => $this->delivery_fee * ($this->rate <= 0 ? 1 : $this->rate),
+            'delivery_fee'                  => $this->delivery_fee * $this->rate,
             'created_at'                    => $this->when($this->created_at, $this->created_at?->format('Y-m-d H:i:s') . 'Z'),
+            'deleted_at'                    => $this->when($this->deleted_at, $this->deleted_at?->format('Y-m-d H:i:s') . 'Z'),
             'user'                          => UserResource::make($this->whenLoaded('user')),
             'details'                       => OrderDetailResource::collection($this->whenLoaded('orderDetails')),
         ];

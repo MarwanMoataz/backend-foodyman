@@ -3,7 +3,6 @@
 namespace App\Repositories\BrandRepository;
 
 use App\Models\Brand;
-use App\Models\Language;
 use App\Repositories\CoreRepository;
 
 class BrandRepository extends CoreRepository
@@ -18,13 +17,7 @@ class BrandRepository extends CoreRepository
 
     public function brandsList(array $array = [])
     {
-        $locale = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
-
         return $this->model()
-            ->with([
-                'shop.translation' => fn($q) => $q->select('id', 'shop_id', 'locale', 'title')
-                    ->where('locale', $this->language)->orWhere('locale', $locale)
-            ])
             ->updatedDate($this->updatedDate)
             ->filter($array)
             ->orderByDesc('id')
@@ -36,16 +29,9 @@ class BrandRepository extends CoreRepository
      */
     public function brandsPaginate(array $filter = [])
     {
-        $locale = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
-
         return $this->model()
-            ->with([
-                'shop.translation' => fn($q) => $q->select('id', 'shop_id', 'locale', 'title')
-                    ->where('locale', $this->language)->orWhere('locale', $locale)
-            ])
             ->withCount([
-                'products' => fn($q) => $q
-                    ->whereHas('shop', fn($q) => $q->whereNull('deleted_at'))
+                'products' => fn($q) => $q->whereHas('shop', fn($q) => $q->whereNull('deleted_at') )
                     ->whereHas('stocks', fn($q) => $q->where('quantity', '>', 0))
             ])
             ->filter($filter)

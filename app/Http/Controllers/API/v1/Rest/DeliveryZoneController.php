@@ -108,10 +108,7 @@ class DeliveryZoneController extends RestBaseController
 
         }
 
-        return $this->onErrorResponse([
-            'code'    => ResponseError::ERROR_400,
-            'message' => __('errors.' . ResponseError::ERROR_400, locale: $this->language)
-        ]);
+        return $this->onErrorResponse(['code' => ResponseError::ERROR_400]);
     }
 
     /**

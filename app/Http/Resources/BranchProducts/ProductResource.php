@@ -29,6 +29,7 @@ class ProductResource extends JsonResource
             'keywords'              => $this->when($this->keywords, $this->keywords),
             'brand_id'              => $this->when($this->brand_id, $this->brand_id),
             'tax'                   => $this->when($this->tax, $this->tax),
+            'bar_code'              => $this->when($this->bar_code, $this->bar_code),
             'qr_code'               => $this->when($this->qr_code, $this->qr_code),
             'status'                => $this->when($this->status, $this->status),
             'active'                => (bool) $this->active,

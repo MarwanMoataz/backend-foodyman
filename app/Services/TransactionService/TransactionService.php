@@ -127,8 +127,8 @@ class TransactionService extends CoreService
             data_set($model, 'total_price', $changedPrice);
         }
 
-        /** @var User|null $user */
-        $user = User::with('wallet')->firstWhere('id', data_get($model, 'user_id'));
+        /** @var User $user */
+        $user = User::with('wallet')->find(data_get($model, 'user_id'));
 
         if (empty($user) || empty($user->wallet)) {
             return [

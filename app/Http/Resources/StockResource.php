@@ -27,7 +27,6 @@ class StockResource extends JsonResource
             'min_quantity'      => $this->when($this->getOriginal('pivot_min_quantity'), $this->getOriginal('pivot_min_quantity')),
             'discount'          => $this->when($this->rate_actual_discount, $this->rate_actual_discount),
             'tax'               => $this->when($this->rate_tax_price, $this->rate_tax_price),
-            'sku'               => $this->when($this->sku, $this->sku),
             'total_price'       => $this->when($this->rate_total_price, $this->rate_total_price),
             'addon'             => (bool)$this->addon,
             'addons'            => StockAddonResource::collection($this->whenLoaded('addons')),

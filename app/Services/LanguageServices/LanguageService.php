@@ -43,17 +43,12 @@ class LanguageService extends CoreService implements LanguageServiceInterface
 
             try {
                 Cache::delete('languages-list');
-            } catch (InvalidArgumentException) {
+            } catch (InvalidArgumentException $e) {
             }
 
             return ['status' => true, 'code' => ResponseError::NO_ERROR, 'data' => $language];
         } catch (Exception $e) {
-            $this->error($e);
-            return [
-                'status'  => false,
-                'code'    => ResponseError::ERROR_501,
-                'message' => __('errors.' . ResponseError::ERROR_501, locale: $this->language)
-            ];
+            return ['status' => false, 'code' => ResponseError::ERROR_400, 'message' => $e->getMessage()];
         }
     }
 
@@ -81,17 +76,13 @@ class LanguageService extends CoreService implements LanguageServiceInterface
 
             try {
                 Cache::delete('languages-list');
-            } catch (InvalidArgumentException) {
+            } catch (InvalidArgumentException $e) {
             }
 
             return ['status' => true, 'code' => ResponseError::NO_ERROR, 'data' => $language];
         } catch (Throwable $e) {
             $this->error($e);
-            return [
-                'status'  => false,
-                'code'    => ResponseError::ERROR_502,
-                'message' => __('errors.' . ResponseError::ERROR_502, locale: $this->language)
-            ];
+            return ['status' => false, 'code' => ResponseError::ERROR_400];
         }
     }
 
@@ -116,7 +107,7 @@ class LanguageService extends CoreService implements LanguageServiceInterface
 
         try {
             Cache::delete('languages-list');
-        } catch (InvalidArgumentException) {
+        } catch (InvalidArgumentException $e) {
         }
 
         return ['status' => true, 'code' => ResponseError::NO_ERROR];
@@ -127,61 +118,15 @@ class LanguageService extends CoreService implements LanguageServiceInterface
         $item = $this->model()->find($id);
 
         if (!$item) {
-            return [
-                'status'  => false,
-                'code'    => ResponseError::ERROR_404,
-                'message' => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
-            ];
+            return ['status' => false, 'code' => ResponseError::ERROR_404];
         }
 
         try {
             Cache::delete('languages-list');
-        } catch (InvalidArgumentException) {
+        } catch (InvalidArgumentException $e) {
         }
 
         return $this->setDefault($id, $default);
     }
 
-    /**
-     * Set Default status of Model
-     * @param int|null $id
-     * @param int|null $default
-     * @param int|null $user
-     * @return array
-     */
-    public function setDefault(?int $id = null, ?int $default = null, ?int $user = null): array
-    {
-        $model = $this->model()->orderByDesc('id')
-            ->when(isset($user), function ($q) use($user) {
-                $q->where('user_id', $user);
-            })->get();
-
-        // Check Languages list, if first records set it default.
-        if (count($model) <= 1) {
-            $this->model()->first()->update(['default' => 1, 'active' => 1]);
-        }
-
-        // Check and update default language if another language came with DEFAULT
-        if ($default) {
-
-            $defaultItem = $this->model()->orderByDesc('id')
-                ->when(isset($user), function ($q) use($user) {
-                    $q->where('user_id', $user);
-                })->whereDefault(1)->first();
-
-            if (!empty($defaultItem)) {
-                $defaultItem->update(['default' => 0]);
-            }
-
-            if ($id) {
-                $item = $this->model()->orderByDesc('id')
-                    ->when(isset($user), function ($q) use ($user) {
-                        $q->where('user_id', $user);
-                    })->find($id);
-                $item->update(['default' => 1, 'active' => 1]);
-            }
-        }
-
-        return ['status' => true, 'code' => ResponseError::NO_ERROR];
-    }
 }

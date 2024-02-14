@@ -6,6 +6,7 @@ use App\Helpers\ResponseError;
 use App\Http\Requests\FilterParamsRequest;
 use App\Http\Requests\UserCreateRequest;
 use App\Http\Resources\UserResource;
+use App\Models\Invitation;
 use App\Models\User;
 use App\Repositories\UserRepository\UserRepository;
 use App\Services\AuthService\UserVerifyService;
@@ -30,6 +31,10 @@ class UserController extends SellerBaseController
 
     public function paginate(Request $request): JsonResponse|AnonymousResourceCollection
     {
+        if (!$this->shop) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
+        }
+
         $users = $this->userRepository->usersPaginate($request->merge(['role' => 'user', 'active' => true])->all());
 
         return UserResource::collection($users);
@@ -37,19 +42,17 @@ class UserController extends SellerBaseController
 
     public function show(string $uuid): JsonResponse
     {
+        if (!$this->shop) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
+        }
+
         $user = $this->userRepository->userByUUID($uuid);
 
         if (!$user) {
-            return $this->onErrorResponse([
-                'code'      => ResponseError::ERROR_404,
-                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
-            ]);
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
         }
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
-            UserResource::make($user)
-        );
+        return $this->successResponse(__('web.user_found'), UserResource::make($user));
     }
 
     /**
@@ -60,6 +63,10 @@ class UserController extends SellerBaseController
      */
     public function store(UserCreateRequest $request): JsonResponse
     {
+        if (!$this->shop) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
+        }
+
         $validated = $request->validated();
         $validated['role'] = 'user';
 
@@ -74,26 +81,26 @@ class UserController extends SellerBaseController
         $result = $this->userService->create($validated);
 
         if (!data_get($result, 'status')) {
-            return $this->onErrorResponse([
-                'code'      => ResponseError::ERROR_404,
-                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
-            ]);
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
         }
 
         (new UserVerifyService)->verifyEmail(data_get($result, 'data'));
 
         return $this->successResponse(
-            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
+            __('web.user_create'),
             UserResource::make(data_get($result, 'data'))
         );
     }
 
-    public function shopUsersPaginate(FilterParamsRequest $request): JsonResponse|AnonymousResourceCollection
+    public function shopUsersPaginate(FilterParamsRequest $request)
     {
-        $users = $this->model
-            ->with('roles')
-            ->whereHas('invitations', function ($q) {
-                $q->where('shop_id', $this->shop->id);
+        if (!$this->shop) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
+        }
+
+        $users = $this->model->with('roles')
+            ->whereHas('invite', function ($q) {
+                $q->where(['shop_id' => $this->shop->id, 'status' => Invitation::STATUS['excepted']]);
             })
             ->when($request->input('search'), function ($query, $search) {
 
@@ -105,15 +112,9 @@ class UserController extends SellerBaseController
                 });
             })
             ->when($request->input('role'), function ($query, $role) {
-
                 $query->whereHas('roles', function ($q) use ($role) {
                     $q->where('name', $role);
                 });
-
-                if ($role === 'user') {
-                    $query->whereHas('orders', fn($q) => $q->where('shop_id', $this->shop->id));
-                }
-
             })
             ->when(isset($request->active), function ($q) use ($request) {
                 $q->where('active', $request->input('active'));
@@ -126,31 +127,33 @@ class UserController extends SellerBaseController
 
     public function shopUserShow(string $uuid): JsonResponse
     {
+        if (!$this->shop) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
+        }
+
         /** @var User $user */
         $user = $this->userRepository->userByUUID($uuid);
 
         if ($user && optional($user->invite)->shop_id == $this->shop->id) {
-            return $this->successResponse(__('errors.' . ResponseError::SUCCESS, locale: $this->language), UserResource::make($user));
+            return $this->successResponse(__('web.user_found'), UserResource::make($user));
         }
 
-        return $this->onErrorResponse([
-            'code'      => ResponseError::ERROR_404,
-            'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
-        ]);
+        return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
     }
 
-    /**
-     * @param FilterParamsRequest $request
-     * @return AnonymousResourceCollection
-     */
-    public function getDeliveryman(FilterParamsRequest $request): AnonymousResourceCollection
+    public function getDeliveryman(FilterParamsRequest $request)
     {
-        $users = $this->model->with(['roles', 'invitations'])
+        if (!$this->shop) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
+        }
+
+        $users = $this->model->with('roles')
             ->whereHas('roles', function ($q) {
                 $q->where('name', 'deliveryman');
             })
-            ->whereHas('invitations', function ($q) {
-                $q->where('shop_id', $this->shop->id);
+            ->whereDoesntHave('invite', function ($q) {
+                $q->where('shop_id', '!=', $this->shop->id)
+                    ->where('status', 3);
             })
             ->when($request->input('search'), function ($q, $search) {
                 $q->where(function ($query) use ($search) {
@@ -167,12 +170,12 @@ class UserController extends SellerBaseController
         return UserResource::collection($users);
     }
 
-    /**
-     * @param $uuid
-     * @return JsonResponse
-     */
     public function setUserActive($uuid): JsonResponse
     {
+        if (!$this->shop) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
+        }
+
         /** @var User $user */
         $user = $this->userRepository->userByUUID($uuid);
 
@@ -180,15 +183,9 @@ class UserController extends SellerBaseController
 
             $user->update(['active' => !$user->active]);
 
-            return $this->successResponse(
-                __('errors.' . ResponseError::SUCCESS, locale: $this->language),
-                UserResource::make($user)
-            );
+            return $this->successResponse(__('web.user_found'), UserResource::make($user));
         }
 
-        return $this->onErrorResponse([
-            'code'      => ResponseError::ERROR_404,
-            'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
-        ]);
+        return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
     }
 }

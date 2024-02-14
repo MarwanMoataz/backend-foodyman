@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Booking\Booking;
 use App\Models\Booking\Table;
+use App\Models\Booking\UserBooking;
 use App\Traits\Loadable;
 use App\Traits\Payable;
 use App\Traits\Reviewable;
 use Database\Factories\OrderFactory;
+use DB;
 use Eloquent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -16,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
 /**
@@ -34,9 +39,7 @@ use Illuminate\Support\Carbon;
  * @property int $seller_price
  * @property float $tax
  * @property float|null $commission_fee
- * @property float|null $service_fee
  * @property float|null $rate_commission_fee
- * @property float|null $rate_service_fee
  * @property string $status
  * @property array|null $location
  * @property string|null $address
@@ -48,13 +51,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $phone
  * @property string|null $username
  * @property string|null $img
- * @property string|null $address_id
- * @property double|null $tips
- * @property double|null $rate_tips
- * @property double|null $coupon_sum_price
- * @property double|null $point_histories_sum_price
- * @property double|null $rate_coupon_sum_price
- * @property double|null $rate_point_histories_sum_price
+ * @property int|null $address_id
  * @property boolean|null $current
  * @property float|null $waiter_fee
  * @property int|null $waiter_id
@@ -64,6 +61,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $user_booking_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
  * @property-read int $rate_total_price
  * @property-read double $rate_total_discount
  * @property-read double $order_details_sum_total_price
@@ -80,14 +78,19 @@ use Illuminate\Support\Carbon;
  * @property-read PointHistory|null $pointHistory
  * @property-read PointHistory|null $pointHistories
  * @property-read Review|null $review
+ * @property-read Transaction|null $transaction
+ * @property-read Collection|Transaction[] $transactions
+ * @property-read int $transactions_count
  * @property-read Collection|PaymentProcess[] $paymentProcess
  * @property-read int $payment_process_count
  * @property-read User|null $user
- * @property-read Shop|null $shop
- * @property-read User|null $deliveryMan
- * @property-read User|null $waiter
- * @property-read User|null $cook
- * @property-read Table|null $table
+ * @property-read Shop $shop
+ * @property-read User $deliveryMan
+ * @property-read User $waiter
+ * @property-read User $cook
+ * @property-read Table $table
+ * @property-read Booking $booking
+ * @property-read UserBooking $userBooking
  * @property-read Collection|Gallery[] $galleries
  * @property-read int|null $galleries_count
  * @property-read Collection|ModelLog[] $logs
@@ -102,6 +105,7 @@ use Illuminate\Support\Carbon;
  * @method static Builder|self whereCreatedAt($value)
  * @method static Builder|self whereCurrencyId($value)
  * @method static Builder|self whereAddressId($value)
+ * @method static Builder|self whereDeletedAt($value)
  * @method static Builder|self whereDeliveryDate($value)
  * @method static Builder|self whereDeliveryFee($value)
  * @method static Builder|self whereDeliveryTime($value)
@@ -120,7 +124,7 @@ use Illuminate\Support\Carbon;
  */
 class Order extends Model
 {
-    use HasFactory, Payable, Reviewable, Loadable;
+    use HasFactory, SoftDeletes, Payable, Reviewable, Loadable;
 
     protected $guarded = ['id'];
 
@@ -174,12 +178,17 @@ class Order extends Model
 
     public function orderDetails(): HasMany
     {
-        return $this->hasMany(OrderDetail::class);
+        return $this->hasMany(OrderDetail::class)->withTrashed();
     }
 
     public function coupon(): HasOne
     {
-        return $this->hasOne(OrderCoupon::class, 'order_id');
+        return $this->hasOne(OrderCoupon::class, 'order_id')->withTrashed();
+    }
+
+    public function transaction(): MorphOne
+    {
+        return $this->morphOne(Transaction::class, 'payable')->withTrashed();
     }
 
     public function deliveryMan(): BelongsTo
@@ -200,6 +209,16 @@ class Order extends Model
     public function table(): BelongsTo
     {
         return $this->belongsTo(Table::class)->withTrashed();
+    }
+
+    public function booking(): BelongsTo
+    {
+        return $this->belongsTo(Booking::class)->withTrashed();
+    }
+
+    public function userBooking(): BelongsTo
+    {
+        return $this->belongsTo(UserBooking::class)->withTrashed();
     }
 
     public function user(): BelongsTo
@@ -224,7 +243,7 @@ class Order extends Model
 
     public function orderRefunds(): HasMany
     {
-        return $this->hasMany(OrderRefund::class);
+        return $this->hasMany(OrderRefund::class)->withTrashed();
     }
 
     public function logs(): MorphMany
@@ -235,43 +254,16 @@ class Order extends Model
     public function getRateTotalPriceAttribute(): ?float
     {
         if (request()->is('api/v1/dashboard/user/*') || request()->is('api/v1/rest/*')) {
-            return $this->total_price * ($this->rate <= 0 ? 1 : $this->rate);
+            return $this->total_price * $this->rate;
         }
 
         return $this->total_price;
     }
 
-    public function getRateTipsAttribute(): ?float
-    {
-        if (request()->is('api/v1/dashboard/user/*') || request()->is('api/v1/rest/*')) {
-            return $this->tips * ($this->rate <= 0 ? 1 : $this->rate);
-        }
-
-        return $this->tips;
-    }
-
-    public function getRateCouponSumPriceAttribute(): ?float
-    {
-        if (request()->is('api/v1/dashboard/user/*') || request()->is('api/v1/rest/*')) {
-            return $this->coupon_sum_price * ($this->rate <= 0 ? 1 : $this->rate);
-        }
-
-        return $this->coupon_sum_price;
-    }
-
-    public function getRatePointHistorySumPriceAttribute(): ?float
-    {
-        if (request()->is('api/v1/dashboard/user/*') || request()->is('api/v1/rest/*')) {
-            return $this->point_histories_sum_price * ($this->rate <= 0 ? 1 : $this->rate);
-        }
-
-        return $this->point_histories_sum_price;
-    }
-
     public function getRateTotalDiscountAttribute(): ?float
     {
         if (request()->is('api/v1/dashboard/user/*') || request()->is('api/v1/rest/*')) {
-            return $this->total_discount * ($this->rate <= 0 ? 1 : $this->rate);
+            return $this->total_discount * $this->rate;
         }
 
         return $this->total_discount;
@@ -280,7 +272,7 @@ class Order extends Model
     public function getRateDeliveryFeeAttribute(): ?float
     {
         if (request()->is('api/v1/dashboard/user/*') || request()->is('api/v1/rest/*')) {
-            return $this->delivery_fee * ($this->rate <= 0 ? 1 : $this->rate);
+            return $this->delivery_fee * $this->rate;
         }
 
         return $this->delivery_fee;
@@ -289,7 +281,7 @@ class Order extends Model
     public function getRateWaiterFeeAttribute(): ?float
     {
         if (request()->is('api/v1/dashboard/user/*') || request()->is('api/v1/rest/*')) {
-            return $this->waiter_fee * ($this->rate <= 0 ? 1 : $this->rate);
+            return $this->waiter_fee * $this->rate;
         }
 
         return $this->waiter_fee;
@@ -298,7 +290,7 @@ class Order extends Model
     public function getRateTaxAttribute(): ?float
     {
         if (request()->is('api/v1/dashboard/user/*') || request()->is('api/v1/rest/*')) {
-            return $this->tax * ($this->rate <= 0 ? 1 : $this->rate);
+            return $this->tax * $this->rate;
         }
 
         return $this->tax;
@@ -307,24 +299,15 @@ class Order extends Model
     public function getRateCommissionFeeAttribute(): ?float
     {
         if (request()->is('api/v1/dashboard/user/*') || request()->is('api/v1/rest/*')) {
-            return $this->commission_fee * ($this->rate <= 0 ? 1 : $this->rate);
+            return $this->commission_fee * $this->rate;
         }
 
-        return $this->commission_fee;
-    }
-
-    public function getRateServiceFeeAttribute(): ?float
-    {
-        if (request()->is('api/v1/dashboard/user/*') || request()->is('api/v1/rest/*')) {
-            return $this->service_fee * ($this->rate <= 0 ? 1 : $this->rate);
-        }
-
-        return $this->service_fee;
+        return $this->tax;
     }
 
     public function getSellerPriceAttribute(): ?float
     {
-        return $this->total_price - $this->delivery_fee - $this->waiter_fee - $this->commission_fee - $this->service_fee;
+        return $this->total_price - $this->delivery_fee - $this->waiter_fee - $this->commission_fee;
     }
 
     /**
@@ -356,10 +339,6 @@ class Order extends Model
             }
 
             $orderByStatuses = array_intersect($orderStatuses, data_get($filter, 'statuses'));
-        }
-
-        if (data_get($filter, 'debt')) {
-            $filter['debt'] = Payment::where('tag', 'cash')->first()?->id;
         }
 
         $query
@@ -401,69 +380,58 @@ class Order extends Model
             ->when(data_get($filter, 'delivery_type'), fn($q, $deliveryType) => $q->where('delivery_type', $deliveryType))
             ->when(data_get($filter, 'date_from'), function (Builder $query, $dateFrom) use ($filter) {
 
-                $dateFrom = date('Y-m-d', strtotime($dateFrom));
+                $dateFrom = date('Y-m-d', strtotime($dateFrom . ' -1 day'));
                 $dateTo = data_get($filter, 'date_to', date('Y-m-d'));
 
-                $dateTo = date('Y-m-d', strtotime($dateTo));
+                $dateTo = date('Y-m-d', strtotime($dateTo . ' +1 day'));
 
-                $query
-                    ->whereDate('created_at', '>=', $dateFrom)
-                    ->whereDate('created_at', '<=', $dateTo);
+                $query->where([
+                    ['created_at', '>', $dateFrom],
+                    ['created_at', '<', $dateTo],
+                ]);
             })
             ->when(data_get($filter, 'delivery_date_from'), function (Builder $query, $dateFrom) use ($filter) {
 
-                $dateFrom = date('Y-m-d', strtotime($dateFrom));// . ' -1 day'
+                $dateFrom = date('Y-m-d', strtotime($dateFrom . ' -1 day'));
 
                 $dateTo = data_get($filter, 'delivery_date_to', date('Y-m-d'));
 
-                $dateTo = date('Y-m-d', strtotime($dateTo));// . ' +1 day'
+                $dateTo = date('Y-m-d', strtotime($dateTo . ' +1 day'));
 
-                $query
-                    ->whereDate('delivery_date', '>=', $dateFrom)
-                    ->whereDate('delivery_date', '<=', $dateTo);
+                $query->where([
+                    ['delivery_date', '>=', $dateFrom],
+                    ['delivery_date', '<=', $dateTo],
+                ]);
             })
             ->when(data_get($filter, 'status'), fn($q, $status) => $q->where('status', $status))
             ->when(data_get($filter, 'deliveryman'), fn(Builder $q, $deliveryman) =>
-            $q->whereHas('deliveryMan', function ($q) use($deliveryman) {
-                $q->where('id', $deliveryman);
-            })
+                $q->whereHas('deliveryMan', function ($q) use($deliveryman) {
+                    $q->where('id', $deliveryman);
+                })
             )
             ->when(data_get($filter, 'empty-deliveryman'), fn(Builder $q) => $q->where(function ($b) {
-                $b->whereNull('deliveryman')
-                    ->orWhere('deliveryman', '=', null)
-                    ->orWhere('deliveryman', '=', 0);
-            })
+                    $b->whereNull('deliveryman')
+                        ->orWhere('deliveryman', '=', null)
+                        ->orWhere('deliveryman', '=', 0);
+                })
             )
             ->when(data_get($filter, 'empty-waiter'), fn(Builder $q) => $q->where(function ($b) {
-                $b->whereNull('waiter_id');
-            })
+                    $b->whereNull('waiter_id');
+                })
             )
             ->when(data_get($filter, 'empty-cook'), fn(Builder $q) => $q->where(function ($b) {
-                $b->whereNull('cook_id');
-            })
+                    $b->whereNull('cook_id');
+                })
             )
             ->when(isset($filter['current']), fn($q) => $q->where('current', $filter['current']))
+            ->when(isset($filter['deleted_at']), fn($q) => $q->onlyTrashed())
             ->when(count($orderByStatuses) > 0, fn($q) => $q->whereIn('status', $orderByStatuses))
-            ->when(data_get($filter, 'request'), function ($q, $request) {
-                $q->whereHas('transaction', function ($q) use ($request) {
-                    $q
-                        ->whereHas('paymentSystem.payment',function ($q){
-                            $q->where('tag','cash');
-                        })
-                        ->where('request', $request);
-                });
-            })
-            ->when(data_get($filter, 'debt'), function ($q, $debt) use ($filter) {
-                $q->whereHas('transaction', function ($q) use ($filter, $debt) {
-                    $q->where('payment_sys_id', $debt)->where('request', data_get($filter, 'request'));
-                });
-            })
             ->when(data_get($filter, 'order_statuses'), function ($q) {
-                $q->orderBy('id', 'desc');
-//                ->orderByRaw(
-//                    DB::raw("FIELD(status, 'new', 'accepted', 'cooking', 'ready', 'on_a_way',  'delivered', 'canceled') ASC")
-//                )
-            });
+                $q->orderByRaw(
+                    DB::raw("FIELD(status, 'new', 'accepted', 'cooking', 'ready', 'on_a_way',  'delivered', 'canceled') ASC")
+                );
+            }
+            );
     }
 
 }

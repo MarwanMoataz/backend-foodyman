@@ -8,36 +8,37 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 
 class CategoryReportExport extends BaseExport implements FromCollection, WithHeadings
 {
-    public function __construct(protected Collection|array $rows) {}
+    protected Collection $rows;
 
-    public function collection(): Collection|array
+    public function __construct(Collection $rows)
     {
-        return $this->rows->map(fn(Collection|array $row) => $this->tableBody($row));
+        $this->rows = $rows;
+    }
+
+    public function collection(): Collection
+    {
+        return $this->rows->map(fn(Collection $row) => $this->tableBody($row));
     }
 
     public function headings(): array
     {
         return [
-            'Id',
-            'Title',
-            'Net sales',
+            'Category',
             'Item sold',
+            'Net sales',
             'Products',
             'Orders',
-            'Created at',
         ];
     }
 
-    private function tableBody(Collection|array $row): array
+    private function tableBody(Collection $row): array
     {
         return [
-            'id'             => data_get($row, 'id', 0),
-            'title'          => data_get($row, 'title', ''),
-            'quantity'       => data_get($row, 'quantity', 0),
-            'price'          => data_get($row, 'price', 0),
-            'products_count' => data_get($row, 'products_count', 0),
-            'count'          => data_get($row, 'count', 0),
-            'created_at'     => data_get($row, 'created_at', 0),
+            'category'          => data_get($row, 'category'),
+            'quantity'          => data_get($row, 'quantity'),
+            'price'             => data_get($row, 'price'),
+            'products_count'    => data_get($row, 'products_count'),
+            'count'             => data_get($row, 'count'),
         ];
     }
 }

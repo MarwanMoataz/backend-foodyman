@@ -19,8 +19,6 @@ class Kernel extends ConsoleKernel
          $schedule->command('remove:expired:closed:dates')->daily();
          $schedule->command('remove:expired:stories')->daily();
 //         $schedule->command('truncate:telescope')->daily();
-        $schedule->command('update:models:galleries')->hourly()->withoutOverlapping()->runInBackground();
-
     }
 
     /**

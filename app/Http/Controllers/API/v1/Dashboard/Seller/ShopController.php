@@ -59,13 +59,13 @@ class ShopController extends SellerBaseController
             return $this->onErrorResponse(['code' => ResponseError::ERROR_204]);
         }
 
+        /** @var Shop $shop */
         $shop = $this->shopRepository->shopDetails($this->shop->uuid);
 
         if (empty($shop)) {
             return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
         }
 
-        /** @var Shop $shop */
         return $this->successResponse(
             __('errors.' . ResponseError::NO_ERROR),
             ShopResource::make($shop->loadMissing('translations', 'seller.wallet'))

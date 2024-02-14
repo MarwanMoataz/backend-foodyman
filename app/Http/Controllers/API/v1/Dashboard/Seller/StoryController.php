@@ -84,7 +84,7 @@ class StoryController extends SellerBaseController
      */
     public function show(Story $story): JsonResponse
     {
-        if ($story->updated_at >= date('Y-m-d', strtotime('+1 day'))) {
+        if (empty($story) || $story->updated_at >= date('Y-m-d', strtotime('+1 day'))) {
             return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
         }
 

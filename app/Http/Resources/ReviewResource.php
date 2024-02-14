@@ -60,14 +60,10 @@ class ReviewResource extends JsonResource
                 $this->assignable_type !== Shop::class && data_get($assignable, 'role') === 'deliveryman',
                 UserResource::make($assignable)
             ),
-            'waiter' => $this->when(
-                $this->assignable_type !== Shop::class && data_get($assignable, 'role') === 'waiter',
-                UserResource::make($assignable)
-            ),
             'assign_user' => $this->when(
                 $this->assignable_type !== Shop::class && data_get($assignable, 'role') !== 'deliveryman',
                 UserResource::make($assignable)
             ),
-        ];
+           ];
     }
 }

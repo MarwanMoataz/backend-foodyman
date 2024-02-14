@@ -59,20 +59,11 @@ class UserAddressController extends UserBaseController
     }
 
     /**
-     * @param int $id
+     * @param UserAddress $userAddress
      * @return JsonResponse
      */
-    public function show(int $id): JsonResponse
+    public function show(UserAddress $userAddress): JsonResponse
     {
-        $userAddress = UserAddress::find($id);
-
-        if ($userAddress?->user_id !== auth('sanctum')->id()) {
-            return $this->onErrorResponse([
-                'code'      => ResponseError::ERROR_404,
-                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
-            ]);
-        }
-
         $result = $this->repository->show($userAddress);
 
         if ($result->user_id !== auth('sanctum')->id()) {
@@ -91,17 +82,15 @@ class UserAddressController extends UserBaseController
     /**
      * Update the specified resource in storage.
      *
-     * @param int $id
+     * @param UserAddress $userAddress
      * @param StoreRequest $request
      * @return JsonResponse
      */
-    public function update(int $id, StoreRequest $request): JsonResponse
+    public function update(UserAddress $userAddress, StoreRequest $request): JsonResponse
     {
         $validated = $request->validated();
 
-        $userAddress = UserAddress::find($id);
-
-        if ($userAddress?->user_id !== auth('sanctum')->id()) {
+        if ($userAddress->user_id !== auth('sanctum')->id()) {
             return $this->onErrorResponse([
                 'code'      => ResponseError::ERROR_404,
                 'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)

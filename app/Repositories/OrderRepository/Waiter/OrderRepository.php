@@ -2,7 +2,6 @@
 
 namespace App\Repositories\OrderRepository\Waiter;
 
-use App\Models\Language;
 use App\Models\Order;
 use App\Repositories\CoreRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -29,6 +28,7 @@ class OrderRepository extends CoreRepository
                 'transaction.paymentSystem',
                 'shop.translation' => fn($q) => $q->where('locale', $this->language),
                 'user',
+                'table',
             ])
             ->orderBy(data_get($data, 'column', 'id'), data_get($data, 'sort', 'desc'))
             ->paginate(data_get($data, 'perPage', 10));
@@ -36,14 +36,15 @@ class OrderRepository extends CoreRepository
 
     /**
      * @param int|null $id
+     * @return Order|null
      */
-    public function show(?int $id)
+    public function show(?int $id): ?Order
     {
         /** @var Order $order */
-        $order  = $this->model();
-		$locale = data_get(Language::languagesList()->where('default', 1)->first(), 'locale');
+        $order = $this->model();
 
         return $order
+            ->withTrashed()
             ->with([
                 'user',
                 'review',
@@ -55,24 +56,17 @@ class OrderRepository extends CoreRepository
                 'transaction.paymentSystem' => function ($q) {
                     $q->select('id', 'tag', 'active');
                 },
-                'orderDetails.stock.stockExtras.group.translation' => function ($q) use($locale) {
-                    $q
-						->select('id', 'extra_group_id', 'locale', 'title')
-						->where('locale', $this->language)
-						->orWhere('locale', $locale);
+                'orderDetails.stock.stockExtras.group.translation' => function ($q) {
+                    $q->select('id', 'extra_group_id', 'locale', 'title')->where('locale', $this->language);
                 },
-                'orderDetails.stock.countable.translation' => function ($q) use($locale) {
-                    $q
-						->select('id', 'product_id', 'locale', 'title')
-						->where('locale', $this->language)
-						->orWhere('locale', $locale);
+                'orderDetails.stock.countable.translation' => function ($q) {
+                    $q->select('id', 'product_id', 'locale', 'title')->where('locale', $this->language);
                 },
-				'orderDetails.stock.countable.unit.translation' => function ($q) use($locale) {
-					$q->where('locale', $this->language)->orWhere('locale', $locale);
-				},
                 'currency' => function ($q) {
                     $q->select('id', 'title', 'symbol');
-                }])
+                },
+                'table',
+            ])
             ->find($id);
     }
 }

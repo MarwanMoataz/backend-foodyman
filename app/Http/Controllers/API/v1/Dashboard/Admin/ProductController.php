@@ -17,7 +17,6 @@ use App\Imports\ProductImport;
 use App\Models\Product;
 use App\Models\Shop;
 use App\Models\Stock;
-use App\Models\User;
 use App\Repositories\Interfaces\ProductRepoInterface;
 use App\Services\ProductService\ProductAdditionalService;
 use App\Services\ProductService\ProductService;
@@ -57,7 +56,6 @@ class ProductController extends AdminBaseController
      */
     public function store(AdminRequest $request): JsonResponse
     {
-        /** @var User $user */
         $user   = auth('sanctum')->user();
         $shopId = $user?->shop?->id;
 
@@ -138,7 +136,6 @@ class ProductController extends AdminBaseController
      */
     public function selectStockPaginate(FilterParamsRequest $request): JsonResponse|AnonymousResourceCollection
     {
-        /** @var User $user */
         $user   = auth('sanctum')->user();
         $shopId = $user?->shop?->id;
 
@@ -279,7 +276,6 @@ class ProductController extends AdminBaseController
      * @param string $uuid
      * @param addInStockRequest $request
      * @return JsonResponse
-     * @throws Exception
      */
     public function addInStock(string $uuid, addInStockRequest $request): JsonResponse
     {
@@ -466,17 +462,6 @@ class ProductController extends AdminBaseController
                 'Successfully',
                 data_get($result, 'data')
             );
-        } catch (Exception $exception) {
-            return $this->errorResponse(ResponseError::ERROR_400, $exception->getMessage());
-        }
-    }
-
-    public function extrasReportPaginate(FilterParamsRequest $request): JsonResponse
-    {
-        try {
-            $result = $this->productRepository->extrasReportPaginate($request->all());
-
-            return $this->successResponse('', $result);
         } catch (Exception $exception) {
             return $this->errorResponse(ResponseError::ERROR_400, $exception->getMessage());
         }

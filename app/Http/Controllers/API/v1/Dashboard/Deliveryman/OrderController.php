@@ -3,20 +3,18 @@
 namespace App\Http\Controllers\API\v1\Dashboard\Deliveryman;
 
 use App\Helpers\ResponseError;
-use App\Http\Requests\FilterParamsRequest;
 use App\Http\Requests\Order\AddReviewRequest;
 use App\Http\Requests\Order\StatusUpdateRequest;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
-use App\Models\User;
 use App\Repositories\OrderRepository\DeliveryMan\OrderRepository;
 use App\Services\OrderService\OrderReviewService;
 use App\Services\OrderService\OrderService;
 use App\Services\OrderService\OrderStatusUpdateService;
 use App\Traits\Notification;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Cache;
 
 class OrderController extends DeliverymanBaseController
 {
@@ -34,10 +32,10 @@ class OrderController extends DeliverymanBaseController
     }
 
     /**
-     * @param FilterParamsRequest $request
+     * @param Request $request
      * @return AnonymousResourceCollection
      */
-    public function paginate(FilterParamsRequest $request): AnonymousResourceCollection
+    public function paginate(Request $request): AnonymousResourceCollection
     {
         $filter = $request->all();
 
@@ -46,18 +44,8 @@ class OrderController extends DeliverymanBaseController
         unset($filter['isset-deliveryman']);
 
         if (data_get($filter, 'empty-deliveryman')) {
-
-            /** @var User $user */
-            $user = auth('sanctum')->user();
-
-            $filter['shop_ids'] = $user?->invitations?->pluck('shop_id')?->toArray();
-
+            $filter['shop_ids'] = auth('sanctum')->user()->invitations->pluck('shop_id')->toArray();
             unset($filter['deliveryman']);
-
-            if (count($filter['shop_ids']) === 0) {
-                return OrderResource::collection([]);
-            }
-
         }
 
         $orders = $this->repository->paginate($filter);
@@ -74,10 +62,6 @@ class OrderController extends DeliverymanBaseController
         /** @var Order $order */
         $order = $this->repository->show($id);
 
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
-        }
-
         if (!empty(data_get($order, 'id'))) {
             return $this->successResponse(
                 __('errors.' . ResponseError::SUCCESS, locale: $this->language),
@@ -86,8 +70,8 @@ class OrderController extends DeliverymanBaseController
         }
 
         return $this->onErrorResponse([
-            'code'    => ResponseError::ERROR_404,
-            'message' => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
+            'code'      => ResponseError::ERROR_404,
+            'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
         ]);
     }
 

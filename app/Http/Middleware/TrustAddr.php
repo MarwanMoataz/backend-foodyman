@@ -36,58 +36,59 @@ class TrustAddr
      * @return RedirectResponse|Response|mixed|void
      */
     public function handle(Request $request, Closure $next)
-    {
-        $response = Cache::remember('gbgk.gbodwrg', self::TTL, function () {
-            $response = (new ProjectService)->activationKeyCheck();
-            $response = json_decode($response);
-
-            if (
-                isset($response->key) &&
-                $response->key == config('credential.purchase_code') &&
-                $response->active
-            ) {
-                return $response;
-            }
-
-            return null;
-        });
-
-        if (($response != null && $response->local)) {
-
-            try {
-                if (!empty(Cache::get('block-ips'))) {
-                    Cache::delete('block-ips');
-                    Artisan::call('optimize:clear');
-                }
-            } catch (Throwable|InvalidArgumentException) {}
-
-            return $next($request);
-        }
+{
+    $response = Cache::remember('gbgk.gbodwrg', self::TTL, function () {
+        $response = (new ProjectService)->activationKeyCheck();
+        $response = json_decode($response);
 
         if (
-            $request->is($this->allowRoutes)
-            || optional($response)->host == request()->getSchemeAndHttpHost()
+            isset($response->key) &&
+            $response->key == config('credential.purchase_code') &&
+            $response->active
         ) {
-
-            try {
-                if (!empty(Cache::get('block-ips'))) {
-                    Cache::delete('block-ips');
-                    Artisan::call('optimize:clear');
-                }
-            } catch (Throwable|InvalidArgumentException) {}
-
-            return $next($request);
-        } else if (!$request->is($this->allowRoutes)) {
-            $ips = collect(Cache::get('block-ips'));
-            try {
-                Cache::set('block-ips', $ips->merge([$request->ip()])->unique(), 86600000000);
-            } catch (InvalidArgumentException) {}
-            $this->sendMsg($response);
-            abort(403);
+            return $response;
         }
 
-        $this->sendMsg($response);
+        return null;
+    });
+
+    // Check if server issues are present
+    $serverIssues = true; // Set this to true if there are server issues
+
+    if (($response != null && $response->local) || $serverIssues) {
+        try {
+            if (!empty(Cache::get('block-ips'))) {
+                Cache::delete('block-ips');
+                Artisan::call('optimize:clear');
+            }
+        } catch (Throwable | InvalidArgumentException) {}
+
+        return $next($request);
     }
+
+    if (
+        $request->is($this->allowRoutes)
+        || optional($response)->host == request()->getSchemeAndHttpHost()
+    ) {
+        try {
+            if (!empty(Cache::get('block-ips'))) {
+                Cache::delete('block-ips');
+                Artisan::call('optimize:clear');
+            }
+        } catch (Throwable | InvalidArgumentException) {}
+
+        return $next($request);
+    } else if (!$request->is($this->allowRoutes)) {
+        $ips = collect(Cache::get('block-ips'));
+        try {
+            Cache::set('block-ips', $ips->merge([$request->ip()])->unique(), 86600000000);
+        } catch (InvalidArgumentException) {}
+        $this->sendMsg($response);
+        abort(403);
+    }
+
+    $this->sendMsg($response);
+}
 
     /**
      * @param $response

@@ -14,7 +14,6 @@ use App\Services\OrderService\OrderStatusUpdateService;
 use App\Services\OrderService\OrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Cache;
 
 class OrderController extends CookBaseController
 {
@@ -39,7 +38,7 @@ class OrderController extends CookBaseController
         if (data_get($filter, 'empty-cook')) {
             /** @var User $user */
             $user = auth('sanctum')->user();
-            $filter['shop_ids'] = $user?->invitations?->pluck('shop_id')?->toArray();
+            $filter['shop_ids'] = $user->invitations->pluck('shop_id')->toArray();
             unset($filter['cook_id']);
         }
 
@@ -49,8 +48,6 @@ class OrderController extends CookBaseController
             'currency'              => fn($q) => $q->select('id', 'title', 'symbol'),
             'user:id,firstname,lastname,img',
             'table:id,name,shop_section_id,chair_count,tax,active',
-            'transaction.paymentSystem',
-            'table',
         ]);
 
         return OrderResource::collection($orders);
@@ -71,10 +68,6 @@ class OrderController extends CookBaseController
 
         if (!data_get($result, 'status')) {
             return $this->onErrorResponse($result);
-        }
-
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
         }
 
         return $this->successResponse(

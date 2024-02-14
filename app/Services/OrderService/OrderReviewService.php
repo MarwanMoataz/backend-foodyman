@@ -32,7 +32,6 @@ class OrderReviewService extends CoreService
             ->with([
                 'review',
                 'reviews',
-                'deliveryMan',
             ])->find($id);
 
         if (!$order || !$order->deliveryMan) {
@@ -59,7 +58,6 @@ class OrderReviewService extends CoreService
             ->with([
                 'review',
                 'reviews',
-                'waiter',
             ])->find($id);
 
         if (!$order || !$order->waiter) {
@@ -86,7 +84,6 @@ class OrderReviewService extends CoreService
             ->with([
                 'review',
                 'reviews',
-                'deliveryMan',
             ])->find($id);
 
         if (!$order || $order->deliveryMan?->id !== auth('sanctum')->id() || !$order->user) {
@@ -113,12 +110,10 @@ class OrderReviewService extends CoreService
      */
     public function addReviewByWaiter($id, $collection): array
     {
-        /** @var Order $order */
         $order = $this->model()
             ->with([
                 'review',
                 'reviews',
-                'waiter',
             ])->find($id);
 
         if (!$order || $order->waiter?->id !== auth('sanctum')->id() || !$order->user) {

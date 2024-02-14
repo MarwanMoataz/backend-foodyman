@@ -3,9 +3,7 @@
 namespace App\Http\Controllers\API\v1\Dashboard\Seller;
 
 use App\Exports\OrderExport;
-use App\Helpers\NotificationHelper;
 use App\Helpers\ResponseError;
-use App\Helpers\Utility;
 use App\Http\Requests\FilterParamsRequest;
 use App\Http\Requests\Order\CookUpdateRequest;
 use App\Http\Requests\Order\StatusUpdateRequest;
@@ -17,10 +15,9 @@ use App\Http\Requests\Order\UpdateRequest;
 use App\Http\Resources\OrderResource;
 use App\Imports\OrderImport;
 use App\Models\Order;
+use App\Models\PushNotification;
 use App\Models\Settings;
-use App\Models\Shop;
 use App\Models\User;
-use App\Models\UserAddress;
 use App\Repositories\DashboardRepository\DashboardRepository;
 use App\Repositories\Interfaces\OrderRepoInterface;
 use App\Repositories\OrderRepository\AdminOrderRepository;
@@ -29,7 +26,6 @@ use App\Services\OrderService\OrderStatusUpdateService;
 use App\Traits\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Facades\Excel;
 use Throwable;
 
@@ -56,8 +52,6 @@ class OrderController extends SellerBaseController
     {
         $filter = $request->merge(['shop_id' => $this->shop->id])->all();
 
-        $status = data_get($filter, 'status');
-
         $orders = $this->adminRepository->ordersPaginate($filter);
 //        $filter['date_from'] = date('Y-m-d H:i:s', strtotime('-1 minute'));
         $statistic = (new DashboardRepository)->orderByStatusStatistics($filter);
@@ -65,12 +59,8 @@ class OrderController extends SellerBaseController
         $lastPage = (new DashboardRepository)->getLastPage(
             data_get($filter, 'perPage', 10),
             $statistic,
-            $status
+            data_get($filter, 'status')
         );
-
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
-        }
 
         return $this->successResponse(__('errors.' . ResponseError::SUCCESS, locale: $this->language), [
             'statistic' => $statistic,
@@ -78,8 +68,7 @@ class OrderController extends SellerBaseController
             'meta'      => [
                 'current_page'  => (int)data_get($filter, 'page', 1),
                 'per_page'      => (int)data_get($filter, 'perPage', 10),
-                'last_page'     => $lastPage,
-                'total'         => (int)data_get($statistic, 'total', 0),
+                'last_page'     => $lastPage
             ],
         ]);
     }
@@ -98,41 +87,21 @@ class OrderController extends SellerBaseController
             $validated['status'] = Order::STATUS_ACCEPTED;
         }
 
-        /** @var Shop $shop */
-        $shop  = Shop::with(['seller', 'deliveryZone'])->find($this->shop->id);
-
-        $address = null;
-
-        if ($request->input('address_id')) {
-            $address = UserAddress::find($request->input('address_id'));
-        }
-
-        $check = Utility::pointInPolygon($address?->location ?? $request->input('location', []), $shop?->deliveryZone?->address ?? []);
-
-        if (!$check && data_get($validated, 'delivery_type') === Order::DELIVERY) {
-            return $this->onErrorResponse([
-                'code'    => ResponseError::ERROR_433,
-                'message' => __('errors.' . ResponseError::NOT_IN_POLYGON, locale: $this->language)
-            ]);
-        }
-
         $result = $this->orderService->create($validated);
 
         if (!data_get($result, 'status')) {
             return $this->onErrorResponse($result);
         }
 
-        if ((int)data_get(Settings::adminSettings()->where('key', 'order_auto_approved')->first(), 'value') === 1) {
-            (new NotificationHelper)->autoAcceptNotification(
-                data_get($result, 'data'),
-                $this->language,
-                Order::STATUS_ACCEPTED
-            );
-        }
+        $tokens = $this->tokens();
 
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
-        }
+        $this->sendNotification(
+            data_get($tokens, 'tokens'),
+            "New order was created",
+            data_get($result, 'data.id', ''),
+            data_get($result, 'data')?->setAttribute('type', PushNotification::NEW_ORDER)?->only(['id', 'status', 'type']),
+            data_get($tokens, 'ids', [])
+        );
 
         return $this->successResponse(
             __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_CREATED, locale: $this->language),
@@ -177,10 +146,6 @@ class OrderController extends SellerBaseController
                 __('errors.' . ResponseError::SUCCESS, locale: $this->language),
                 $this->orderRepository->reDataOrder($order)
             );
-        }
-
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
         }
 
         return $this->onErrorResponse([
@@ -241,10 +206,6 @@ class OrderController extends SellerBaseController
 
         if (!data_get($result, 'status')) {
             return $this->onErrorResponse($result);
-        }
-
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
         }
 
         return $this->successResponse(
@@ -354,12 +315,12 @@ class OrderController extends SellerBaseController
 
     public function fileExport(FilterParamsRequest $request): JsonResponse
     {
-        $fileName = 'export/orders.xlsx';
+        $fileName = 'export/orders.xls';
 
         try {
             $filter = $request->merge(['shop_id' => $this->shop->id, 'language' => $this->language])->all();
 
-            Excel::store(new OrderExport($filter), $fileName, 'public', \Maatwebsite\Excel\Excel::XLSX);
+            Excel::store(new OrderExport($filter), $fileName, 'public');
 
             return $this->successResponse('Successfully exported', [
                 'path' => 'public/export',

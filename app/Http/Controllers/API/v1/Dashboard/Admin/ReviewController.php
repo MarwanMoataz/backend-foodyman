@@ -11,7 +11,6 @@ use App\Repositories\ReviewRepository\ReviewRepository;
 use App\Services\ReviewService\ReviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Cache;
 
 class ReviewController extends AdminBaseController
 {
@@ -35,10 +34,6 @@ class ReviewController extends AdminBaseController
      */
     public function paginate(PaginateRequest $request): AnonymousResourceCollection
     {
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
-        }
-
         return ReviewResource::collection($this->repository->paginate($request->all()));
     }
 
@@ -50,10 +45,11 @@ class ReviewController extends AdminBaseController
     {
         $review = $this->repository->show($review);
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
-            ReviewResource::make($review)
-        );
+        if (empty($review)) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
+        }
+
+        return $this->successResponse(__('web.review_found'), ReviewResource::make($review));
     }
 
     /**
@@ -66,9 +62,7 @@ class ReviewController extends AdminBaseController
     {
         $this->service->destroy(is_array($request->input('ids')) ? $request->input('ids') : []);
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_has_been_successfully_delete'));
     }
 
     /**
@@ -78,9 +72,7 @@ class ReviewController extends AdminBaseController
     {
         $this->service->dropAll();
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_was_successfully_updated'), []);
     }
 
     /**
@@ -90,9 +82,7 @@ class ReviewController extends AdminBaseController
     {
         $this->service->truncate();
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_was_successfully_updated'), []);
     }
 
     /**
@@ -102,8 +92,6 @@ class ReviewController extends AdminBaseController
     {
         $this->service->restoreAll();
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_was_successfully_updated'), []);
     }
 }

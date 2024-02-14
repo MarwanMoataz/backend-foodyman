@@ -21,13 +21,9 @@ class UserObserver
         $myReferral = Str::random(2) . $user->id . Str::random(2);
 
         if (Str::length($myReferral) > 8) {
-
             $myReferral = Str::limit($myReferral, 8);
-
         } else if (Str::length($myReferral) < 8) {
-
             $myReferral .= Str::random(8 - Str::length($myReferral));
-
         }
 
         $user->uuid         = Str::uuid();
@@ -66,7 +62,6 @@ class UserObserver
      */
     public function deleted(User $user): void
     {
-        $user->shop()->delete();
         (new ModelLogService)->logging($user, $user->getAttributes(), 'deleted');
     }
 
