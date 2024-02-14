@@ -53,7 +53,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property Carbon|null $deleted_at
  * @property-read Collection|Gallery[] $galleries
  * @property-read int|null $galleries_count
- * @property mixed $role
+ * @property-read mixed $role
  * @property-read Collection|Invitation[] $invitations
  * @property-read int|null $invitations_count
  * @property-read Invitation|null $invite
@@ -62,8 +62,6 @@ use Spatie\Permission\Traits\HasRoles;
  * @property-read Shop|null $moderatorShop
  * @property-read Collection|Review[] $reviews
  * @property-read int|null $reviews_count
- * @property-read Collection|UserAddress[] $addresses
- * @property-read int|null $addresses_count
  * @property-read Collection|Review[] $assignReviews
  * @property-read int|null $assign_reviews_count
  * @property-read Collection|Notification[] $notifications
@@ -229,11 +227,6 @@ class User extends Authenticatable implements MustVerifyEmail
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
-    }
-
-    public function addresses(): HasMany
-    {
-        return $this->hasMany(UserAddress::class);
     }
 
     public function transactions(): HasMany

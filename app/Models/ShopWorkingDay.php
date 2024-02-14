@@ -24,17 +24,17 @@ use Eloquent;
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
  * @method static ShopWorkingDayFactory factory(...$parameters)
- * @method static Builder|self filter($array = [])
- * @method static Builder|self newModelQuery()
- * @method static Builder|self newQuery()
- * @method static Builder|self query()
- * @method static Builder|self whereCreatedAt($value)
- * @method static Builder|self whereUpdatedAt($value)
- * @method static Builder|self whereId($value)
- * @method static Builder|self whereShopId($value)
- * @method static Builder|self whereDay($value)
- * @method static Builder|self whereFrom($value)
- * @method static Builder|self whereTo($value)
+ * @method static Builder|ShopWorkingDay filter($array = [])
+ * @method static Builder|ShopWorkingDay newModelQuery()
+ * @method static Builder|ShopWorkingDay newQuery()
+ * @method static Builder|ShopWorkingDay query()
+ * @method static Builder|ShopWorkingDay whereCreatedAt($value)
+ * @method static Builder|ShopWorkingDay whereUpdatedAt($value)
+ * @method static Builder|ShopWorkingDay whereId($value)
+ * @method static Builder|ShopWorkingDay whereShopId($value)
+ * @method static Builder|ShopWorkingDay whereDay($value)
+ * @method static Builder|ShopWorkingDay whereFrom($value)
+ * @method static Builder|ShopWorkingDay whereTo($value)
  * @mixin Eloquent
  */
 class ShopWorkingDay extends Model

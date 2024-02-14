@@ -24,41 +24,37 @@ class ProductReportResource extends JsonResource
 
         return [
             'id'            => $this->id,
-            'category_id'   => $this->category_id ?? 0,
+            'bar_code'      => $this->bar_code,
+            'category_id'   => $this->category_id,
             'active'        => $this->active,
             'shop_id'       => $this->shop_id,
-            'interval'      => $this->interval,
-            'quantity'      => $this->stocks->reduce(
-                fn($carry, Stock $item) => $carry + $item->orderDetails
-                    ->when(request('shop_id'), fn($q, $shopId) => $q->where('order.shop_id', $shopId))
-                    ->where('order.status', Order::STATUS_DELIVERED)
-                    ->where('order.created_at', '>=', $dateFrom)
-                    ->where('order.created_at', '<=', $dateTo)
-                    ->sum('quantity')
-            ) ?? 0,
-            'count' => $this->stocks->reduce(
-                fn(mixed $carry, Stock $item) => $carry + $item->orderDetails
-                    ->when(request('shop_id'), fn($q, $shopId) => $q->where('order.shop_id', $shopId))
-                    ->where('order.status', Order::STATUS_DELIVERED)
-                    ->where('order.created_at', '>=', $dateFrom)
-                    ->where('order.created_at', '<=', $dateTo)
-                    ->groupBy('order_id')
-                    ->count()
-            ) ?? 0,
+            'quantity'      => $this->stocks->reduce(fn($carry, Stock $item) => $carry + $item->orderDetails
+                        ->when(request('shop_id'), fn($q, $shopId) => $q->where('shop_id', $shopId))
+                        ->where('order.status', Order::STATUS_DELIVERED)
+                        ->where('order.created_at', '>=', $dateFrom)
+                        ->where('order.created_at', '<=', $dateTo)
+                        ->sum('quantity')) ?? 0,
+            'count' => $this->stocks->reduce(fn(mixed $carry, Stock $item) => $carry + $item->orderDetails
+                        ->when(request('shop_id'), fn($q, $shopId) => $q->where('shop_id', $shopId))
+                        ->where('order.status', Order::STATUS_DELIVERED)
+                        ->where('order.created_at', '>=', $dateFrom)
+                        ->where('order.created_at', '<=', $dateTo)
+                        ->groupBy('order_id')->count()
+                ) ?? 0,
             'price' => $this->stocks->reduce(fn($carry, Stock $item) => $carry +
-                $item->orderDetails
-                   ->when(request('shop_id'), fn($q, $shopId) => $q->where('order.shop_id', $shopId))
-                   ->where('order.status', Order::STATUS_DELIVERED)
-                   ->where('order.created_at', '>=', $dateFrom)
-                   ->where('order.created_at', '<=', $dateTo)
-                   ->groupBy('order_id')->reduce(fn($c, $i) => $c + $i->sum('order.total_price'))
-            ) ?? 0,
+                    $item->orderDetails
+                        ->when(request('shop_id'), fn($q, $shopId) => $q->where('shop_id', $shopId))
+                        ->where('order.status', Order::STATUS_DELIVERED)
+                        ->where('order.created_at', '>=', $dateFrom)
+                        ->where('order.created_at', '<=', $dateTo)
+                        ->groupBy('order_id')->reduce(fn($c, $i) => $c + $i->sum('order.total_price'))
+                ) ?? 0,
             'deleted_at'    => $this->when($this->deleted_at, $this->deleted_at?->format('Y-m-d H:i:s') . 'Z'),
 
             // Relations
-            'translation'   => $this->translation ? TranslationResource::make($this->translation) : ['id' => 0, 'translation' => ['title' => 'removed']],
+            'translation'   => TranslationResource::make($this->translation),
             'stocks'        => SimpleStockReportResource::collection($this->stocks),
-            'category'      => $this->category ? CategoryResource::make($this->category) : ['id' => 0, 'translation' => ['title' => 'removed']],
+            'category'      => CategoryResource::make($this->category),
         ];
     }
 

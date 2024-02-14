@@ -41,7 +41,7 @@ use Illuminate\Support\Collection;
  */
 class OrderRefund extends Model
 {
-    use HasFactory, Loadable;
+    use HasFactory, SoftDeletes, Loadable;
 
     protected $guarded = ['id'];
 
@@ -57,7 +57,7 @@ class OrderRefund extends Model
 
     public function order(): BelongsTo
     {
-        return $this->belongsTo(Order::class);
+        return $this->belongsTo(Order::class)->withTrashed();
     }
 
     public function scopeFilter($query, $filter = [])
@@ -76,6 +76,7 @@ class OrderRefund extends Model
                     }
                 });
             })
+            ->when(isset($filter['deleted_at']), fn($q) => $q->onlyTrashed())
             ->when(data_get($filter, 'status'), function ($q, $status) {
                 $q->where('status', $status);
             })

@@ -10,5 +10,5 @@ interface BrandServiceInterface
 
     public function update(Brand $brand, array $data);
 
-    public function delete(?array $ids = [], ?int $shopId = null);
+    public function delete(?array $ids = []);
 }

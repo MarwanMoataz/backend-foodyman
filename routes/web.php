@@ -4,7 +4,8 @@ use App\Http\Controllers\API\v1\Dashboard\Payment\{
     MercadoPagoController,
     PayStackController,
     RazorPayController,
-    StripeController
+    StripeController,
+    MyFatoorahController
 };
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +29,7 @@ Route::get('order-razorpay-success', [RazorPayController::class, 'orderResultTra
 Route::get('order-paystack-success', [PayStackController::class, 'orderResultTransaction']);
 
 Route::get('order-mercado-pago-success', [MercadoPagoController::class, 'orderResultTransaction']);
+Route::get('order-myfatoorah-success', [MyFatoorahController::class, 'orderResultTransaction']);
 
 Route::get('/', function () {
     return view('welcome');

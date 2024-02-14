@@ -258,6 +258,7 @@ return [
         'username' => 'username',
         'order_id' => 'order',
         'brand_id' => 'brand',
+        'bar_code' => 'bar code',
         'max_time' => 'max time',
         'end_time' => 'end time',
         'owner_id' => 'owner',

@@ -19,7 +19,6 @@ use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Laravel\Sanctum\PersonalAccessToken;
 use Spatie\Permission\Models\Role;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -93,7 +92,7 @@ class LoginController extends Controller
                     'active'            => true,
                     'firstname'         => !empty($firstname) ? $firstname : $request->input('email'),
                     'lastname'          => $lastname,
-                    'deleted_at'        => null,
+                    'delete_at'         => null,
                 ]
             );
 
@@ -142,26 +141,8 @@ class LoginController extends Controller
     public function logout(): JsonResponse
     {
         try {
-            /** @var User $user */
-            /** @var PersonalAccessToken $current */
-            $user           = auth('sanctum')->user();
-            $firebaseToken  = collect($user->firebase_token)
-                ->reject(fn($item) => (string)$item == (string)request('firebase_token') || empty($item))
-                ->toArray();
-
-            $user->update([
-                'firebase_token' => $firebaseToken
-            ]);
-
-            try {
-                $token   = str_replace('Bearer ', '', request()->header('Authorization'));
-
-                $current = PersonalAccessToken::findToken($token);
-                $current->delete();
-
-            } catch (Throwable $e) {
-                $this->error($e);
-            }
+            $current = auth('sanctum')->user()?->currentAccessToken();
+            $current->delete();
         } catch (Throwable $e) {
             $this->error($e);
         }
@@ -197,7 +178,7 @@ class LoginController extends Controller
             return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
         }
 
-        $token = mb_substr((string)time(), -6, 6);
+        $token = mb_substr(time(), -6, 6);
 
         Cache::put($token, $token, 900);
 

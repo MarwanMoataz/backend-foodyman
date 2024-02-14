@@ -25,6 +25,7 @@ class StockReportExport extends BaseExport implements FromCollection, WithHeadin
     {
         return [
             'Product title',
+            'Bar code',
             'Status',
             'Stock',
         ];
@@ -33,7 +34,8 @@ class StockReportExport extends BaseExport implements FromCollection, WithHeadin
     private function tableBody(Product $product): array
     {
         return [
-            'title'     => $product->translation?->title,
+            'title'     => optional($product->translation)->title,
+            'bar_code'  => $product->bar_code,
             'status'    => $product->status ?: data_get(Product::STATUSES, $product->status),
             'stock'     => $product->stocks_sum_quantity
         ];

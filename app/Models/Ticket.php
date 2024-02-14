@@ -72,7 +72,7 @@ class Ticket extends Model
     public function scopeFilter($query, $array) {
         $query
             ->when(isset($array['status']),             fn($q)              => $q->where('status', $array['status']))
-            ->when(isset($array['deleted_at']),        fn($q)              => $q->onlyTrashed())
+            ->when(isset($filter['deleted_at']),        fn($q)              => $q->onlyTrashed())
             ->when(data_get($array, 'created_by'),  fn($q, $createdBy)  => $q->where('created_by', $createdBy))
             ->when(data_get($array, 'user_id'),     fn($q, $userId)     => $q->where('user_id', $userId))
             ->when(data_get($array, 'type'),        fn($q, $type)       => $q->where('type', $type));

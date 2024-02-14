@@ -14,7 +14,6 @@ class BrandCreateRequest extends BaseRequest
     public function rules(): array
     {
         return [
-            'shop_id'               => ['int', Rule::exists('shops', 'id')->whereNull('deleted_at')],
             'active'                => ['numeric', Rule::in(1,0)],
             'title'                 => ['required', 'string', 'min:2'],
             'images'                => ['array'],

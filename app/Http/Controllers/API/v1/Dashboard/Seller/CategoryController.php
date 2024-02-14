@@ -12,6 +12,7 @@ use App\Imports\CategoryImport;
 use App\Models\Category;
 use App\Repositories\Interfaces\CategoryRepoInterface;
 use App\Services\CategoryServices\CategoryService;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -20,9 +21,9 @@ use Throwable;
 
 class CategoryController extends SellerBaseController
 {
+
     private CategoryService $categoryService;
     private CategoryRepoInterface $categoryRepository;
-    private array $types = ['main', 'sub_main', 'receipt'];
 
     public function __construct(CategoryService $categoryService, CategoryRepoInterface $categoryRepository)
     {
@@ -35,18 +36,11 @@ class CategoryController extends SellerBaseController
      * Display a listing of the resource.
      *
      * @param CategoryFilterRequest $request
-     * @return JsonResponse|AnonymousResourceCollection
+     * @return AnonymousResourceCollection
      */
-    public function index(CategoryFilterRequest $request): JsonResponse|AnonymousResourceCollection
+    public function index(CategoryFilterRequest $request): AnonymousResourceCollection
     {
-        $filter = $request->all();
-
-        if (in_array(data_get($filter, 'type'), $this->types)) {
-            $filter['shop_id'] = $this->shop->id;
-            $filter['parent_ids'] = $this->shop->categories?->pluck('id')?->toArray();
-        }
-
-        $categories = $this->categoryRepository->categories($filter);
+        $categories = $this->categoryRepository->parentCategories($request->all());
 
         return CategoryResource::collection($categories);
     }
@@ -55,18 +49,11 @@ class CategoryController extends SellerBaseController
      * Display a listing of the resource with paginate.
      *
      * @param CategoryFilterRequest $request
-     * @return JsonResponse|AnonymousResourceCollection
+     * @return AnonymousResourceCollection
      */
-    public function paginate(CategoryFilterRequest $request): JsonResponse|AnonymousResourceCollection
+    public function paginate(CategoryFilterRequest $request): AnonymousResourceCollection
     {
-        $filter = $request->all();
-
-        if (in_array(data_get($filter, 'type'), $this->types)) {
-            $filter['shop_id'] = $this->shop->id;
-            $filter['parent_ids'] = $this->shop->categories?->pluck('id')?->toArray();
-        }
-
-        $categories = $this->categoryRepository->parentCategories($filter);
+        $categories = $this->categoryRepository->parentCategories($request->all());
 
         return CategoryResource::collection($categories);
     }
@@ -75,38 +62,11 @@ class CategoryController extends SellerBaseController
      * Display a listing of the resource with paginate.
      *
      * @param CategoryFilterRequest $request
-     * @return JsonResponse|AnonymousResourceCollection
+     * @return AnonymousResourceCollection
      */
-    public function selectPaginate(CategoryFilterRequest $request): JsonResponse|AnonymousResourceCollection
+    public function selectPaginate(CategoryFilterRequest $request): AnonymousResourceCollection
     {
-        $filter = $request->all();
-
-        if (in_array(data_get($filter, 'type'), $this->types + ['sub_shop'])) {
-            $filter['shop_id'] = $this->shop->id;
-            $filter['parent_ids'] = $this->shop->categories?->pluck('id')?->toArray();
-        }
-
-        $categories = $this->categoryRepository->selectPaginate($filter);
-
-        return CategoryResource::collection($categories);
-    }
-
-    /**
-     * Display a listing of the resource with paginate.
-     *
-     * @param CategoryFilterRequest $request
-     * @return JsonResponse|AnonymousResourceCollection
-     */
-    public function mySelectPaginate(CategoryFilterRequest $request): JsonResponse|AnonymousResourceCollection
-    {
-        $filter = $request->all();
-
-        if (in_array(data_get($filter, 'type'), $this->types + ['sub_shop'])) {
-            $filter['shop_id'] = $this->shop->id;
-            $filter['parent_ids'] = $this->shop->categories?->pluck('id')?->toArray();
-        }
-
-        $categories = $this->categoryRepository->mySelectPaginate($filter, $this->shop->id);
+        $categories = $this->categoryRepository->selectPaginate($request->except(['active']));
 
         return CategoryResource::collection($categories);
     }
@@ -119,21 +79,17 @@ class CategoryController extends SellerBaseController
      */
     public function store(CategoryCreateRequest $request): JsonResponse
     {
-        $validated = $request->validated();
-
-        if (in_array($request->input('type'), $this->types)) {
-            $validated['shop_id'] = $this->shop->id;
+        if (!$this->shop) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
         }
 
-        $result = $this->categoryService->create($validated);
+        $result = $this->categoryService->create($request->validated());
 
         if (!data_get($result, 'status')) {
             return $this->onErrorResponse($result);
         }
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_CREATED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_successfully_created'), []);
     }
 
     /**
@@ -144,21 +100,14 @@ class CategoryController extends SellerBaseController
      */
     public function show(string $uuid): JsonResponse
     {
+        if (!$this->shop) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
+        }
+
         $category = $this->categoryRepository->categoryByUuid($uuid);
 
         if (!$category) {
-            return $this->onErrorResponse([
-                'code'      => ResponseError::ERROR_404,
-                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
-            ]);
-        }
-
-        /** @var Category $category */
-        if (!empty($category->shop_id) && $category->shop_id !== $this->shop->id) {
-            return $this->onErrorResponse([
-                'code'      => ResponseError::ERROR_404,
-                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
-            ]);
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
         }
 
         $category->load([
@@ -166,10 +115,7 @@ class CategoryController extends SellerBaseController
             'metaTags',
         ]);
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
-            CategoryResource::make($category)
-        );
+        return $this->successResponse(__('web.category_found'), CategoryResource::make($category));
     }
 
     /**
@@ -181,22 +127,17 @@ class CategoryController extends SellerBaseController
      */
     public function update(string $uuid, CategoryCreateRequest $request): JsonResponse
     {
-        $category = Category::where('uuid', $uuid)->first();
-
-        if (!$category || $category->shop_id !== $this->shop->id) {
-            return $this->onErrorResponse([
-                'code'      => ResponseError::ERROR_404,
-                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
-            ]);
+        if (!$this->shop) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
         }
 
-        $result = $this->categoryService->update($category->uuid, $request->validated());
+        $result = $this->categoryService->update($uuid, $request->validated());
 
         if (!data_get($result, 'status')) {
             return $this->onErrorResponse($result);
         }
 
-        return $this->successResponse(__('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_UPDATED));
+        return $this->successResponse(__('web.record_successfully_updated'), []);
     }
 
     /**
@@ -207,49 +148,72 @@ class CategoryController extends SellerBaseController
      */
     public function imageDelete(string $uuid): JsonResponse
     {
+        if (!$this->shop) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
+        }
+
         $category = Category::firstWhere('uuid', $uuid);
 
-        if (!$category || $category->shop_id !== $this->shop->id) {
-            return $this->onErrorResponse([
-                'code'    => ResponseError::ERROR_404,
-                'message' => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
-            ]);
+        if (!$category) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
         }
 
         $category->galleries()->where('path', $category->img)->delete();
 
         $category->update(['img' => null]);
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language),
-            $category
-        );
+        return $this->successResponse(__('web.image_has_been_successfully_delete'), $category);
     }
 
     /**
      * Search Model by tag name.
      *
      * @param CategoryFilterRequest $request
-     * @return JsonResponse|AnonymousResourceCollection
+     * @return AnonymousResourceCollection
      */
-    public function categoriesSearch(CategoryFilterRequest $request): JsonResponse|AnonymousResourceCollection
+    public function categoriesSearch(CategoryFilterRequest $request): AnonymousResourceCollection
     {
-        $categories = $this->categoryRepository->categoriesSearch($request->merge(['shop_id' => $this->shop->id])->all());
+        $categories = $this->categoryRepository->categoriesSearch($request->all());
 
         return CategoryResource::collection($categories);
     }
 
-    public function fileExport(FilterParamsRequest $request): JsonResponse
+    /**
+     * Change Active Status of Model.
+     *
+     * @param string $uuid
+     * @return JsonResponse
+     */
+    public function setActive(string $uuid): JsonResponse
     {
-        $fileName = 'export/categories.xlsx';
+        if (!$this->shop) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
+        }
+
+        $category = $this->categoryRepository->categoryByUuid($uuid);
+
+        if (!$category) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
+        }
+
+        $category->update(['active' => !$category->active]);
+
+        return $this->successResponse(
+            __('web.record_has_been_successfully_updated'),
+            CategoryResource::make($category)
+        );
+    }
+
+    public function fileExport(): JsonResponse
+    {
+        if (!$this->shop) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
+        }
+
+        $fileName = 'export/categories.xls';
 
         try {
-            Excel::store(
-                new CategoryExport($this->language, $request->merge(['shop_id' => $this->shop->id])->all()),
-                $fileName,
-                'public',
-                \Maatwebsite\Excel\Excel::XLSX
-            );
+            Excel::store(new CategoryExport($this->language), $fileName, 'public');
         } catch (Throwable $e) {
             $this->error($e);
             return $this->errorResponse('Error during export');
@@ -263,32 +227,21 @@ class CategoryController extends SellerBaseController
 
     public function fileImport(Request $request): JsonResponse
     {
+        if (!$this->shop) {
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
+        }
+
         try {
-            Excel::import(new CategoryImport($this->language, $this->shop->id), $request->file('file'));
+            Excel::import(new CategoryImport($this->language), $request->file('file'));
 
             return $this->successResponse('Successfully imported');
-        } catch (Throwable $e) {
-            $this->error($e);
+        } catch (Exception $exception) {
+            $this->error($exception);
             return $this->errorResponse(
                 ResponseError::ERROR_508,
-                __('errors.' . ResponseError::ERROR_508, locale: $this->language) . ' | ' . $e->getMessage()
+                'Excel format incorrect or data invalid'
             );
         }
-    }
-
-    /**
-     * @param string $uuid
-     * @return JsonResponse
-     */
-    public function changeActive(string $uuid): JsonResponse
-    {
-        $result = $this->categoryService->changeActive($uuid, $this->shop->id);
-
-        if (!empty(data_get($result, 'data'))) {
-            return $this->onErrorResponse($result);
-        }
-
-        return $this->successResponse(__('errors.' . ResponseError::ERROR_502, locale: $this->language));
     }
 
     /**
@@ -299,7 +252,7 @@ class CategoryController extends SellerBaseController
      */
     public function destroy(FilterParamsRequest $request): JsonResponse
     {
-        $result = $this->categoryService->delete($request->input('ids', []), $this->shop->id);
+        $result = $this->categoryService->delete($request->input('ids', []));
 
         if (!empty(data_get($result, 'data'))) {
             return $this->onErrorResponse([
@@ -308,6 +261,6 @@ class CategoryController extends SellerBaseController
             ]);
         }
 
-        return $this->successResponse(__('web.record_has_been_successfully_delete', locale: $this->language));
+        return $this->successResponse(__('web.record_has_been_successfully_delete'));
     }
 }

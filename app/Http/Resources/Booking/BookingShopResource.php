@@ -6,12 +6,13 @@ use App\Http\Resources\Bonus\ShopBonusResource;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\ModelLogResource;
 use App\Http\Resources\ShopPaymentResource;
+use App\Http\Resources\ShopSubscriptionResource;
 use App\Http\Resources\ShopTagResource;
 use App\Http\Resources\SimpleDiscountResource;
 use App\Http\Resources\TranslationResource;
 use App\Http\Resources\UserResource;
 use App\Models\Booking\BookingShop;
-use Illuminate\Support\Facades\Cache;
+use Cache;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -50,6 +51,7 @@ class BookingShopResource extends JsonResource
             'is_recommended'    => $this->when($isRecommended, $isRecommended),
             'status'            => $this->when($this->status, $this->status),
             'status_note'       => $this->when($this->status_note, $this->status_note),
+            'type'              => $this->when($this->type, data_get(BookingShop::TYPES, $this->type)),
             'avg_rate'          => $this->when($this->avg_rate, $this->avg_rate),
             'delivery_time'     => $this->when($this->delivery_time, $this->delivery_time),
             'invite_link'       => $this->when($isSeller, "/shop/invitation/$this->uuid/link"),

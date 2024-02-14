@@ -114,6 +114,7 @@ class ProductService extends CoreService implements ProductServiceInterface
                 ];
             }
 
+            /** @var Product $product */
             $product = $this->model()->firstWhere('uuid', $uuid);
 
             if (empty($product)) {
@@ -139,7 +140,6 @@ class ProductService extends CoreService implements ProductServiceInterface
                 data_set($data, 'max_qty',1000000);
             }
 
-            /** @var Product $product */
             $product->update($data);
 
             $this->setTranslations($product, $data);
@@ -176,14 +176,13 @@ class ProductService extends CoreService implements ProductServiceInterface
     public function parentSync(array $data): array
     {
         $errorIds = [];
-        $uuIds    = [];
 
         foreach (data_get($data, 'products') as $parentId) {
 
             try {
                 $parentId = (int)$parentId;
 
-                DB::transaction(function () use ($parentId, $data, &$uuIds) {
+                DB::transaction(function () use ($parentId, $data) {
 
                     /** @var Product $parent */
 
@@ -222,13 +221,11 @@ class ProductService extends CoreService implements ProductServiceInterface
                         'shop_id'   => data_get($data, 'shop_id'),
                     ], $clone->getAttributes());
 
-                    $uuIds[]        = $clone->uuid;
-
                     $translations   = $parent->translations;
                     $stocks         = $parent->stocks;
                     $discounts      = $parent->discounts;
                     $tags           = $parent->tags;
-                    $metaTags       = $parent->metaTags;
+                    $metaTags       = $parent->metaTags;//?->toArray();
                     $galleries      = $parent->galleries;
                     $properties     = $parent->properties;
 
@@ -331,19 +328,19 @@ class ProductService extends CoreService implements ProductServiceInterface
                             'countable_id'   => $clone->id,
                             'parent_id'      => $stock->id,
                         ], [
-                            'price'          => $stock->price,
-                            'quantity'       => $stock->quantity,
-                            'addon'          => $stock->addon,
+                            'price'          => $stock?->price,
+                            'quantity'       => $stock?->quantity,
+                            'addon'          => $stock?->addon,
                             'deleted_at'     => null,
                         ]);
 
-                        $extras = $stock->stockExtras?->pluck('id')?->toArray();
+                        $extras = $stock?->stockExtras?->pluck('id')?->toArray();
 
                         $clonedStock->stockExtras()->sync(is_array($extras) ? $extras : []);
 
                         $addons = $stock->addons;
 
-                        if ($addons?->count()) {
+                        if (empty($addons)) {
                             continue;
                         }
 
@@ -502,12 +499,7 @@ class ProductService extends CoreService implements ProductServiceInterface
             return ['status' => false, 'code' => ResponseError::ERROR_502, 'data' => $errorIds];
         }
 
-        return [
-            'status'    => true,
-            'code'      => ResponseError::NO_ERROR,
-            'message'   => ResponseError::NO_ERROR,
-            'data'      => $uuIds
-        ];
+        return ['status' => true, 'code' => ResponseError::NO_ERROR, 'message' => ResponseError::NO_ERROR];
     }
 
     /**
@@ -553,13 +545,10 @@ class ProductService extends CoreService implements ProductServiceInterface
         $errIds = [];
 
         if (count($ids) === 0) {
-            $stock->addons()->delete();
             return $errIds;
         }
 
         try {
-
-            $stock = $stock->loadMissing(['countable']);
 
             $stock->addons()->delete();
 

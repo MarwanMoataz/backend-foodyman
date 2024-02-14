@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\API\v1\Dashboard\Admin;
 
 use App\Exports\OrderExport;
-use App\Helpers\NotificationHelper;
 use App\Helpers\ResponseError;
 use App\Helpers\Utility;
 use App\Http\Requests\FilterParamsRequest;
@@ -11,7 +10,6 @@ use App\Http\Requests\Order\CookUpdateRequest;
 use App\Http\Requests\Order\DeliveryManUpdateRequest;
 use App\Http\Requests\Order\OrderChartPaginateRequest;
 use App\Http\Requests\Order\OrderChartRequest;
-use App\Http\Requests\Order\OrderTransactionRequest;
 use App\Http\Requests\Order\StatusUpdateRequest;
 use App\Http\Requests\Order\StocksCalculateRequest;
 use App\Http\Requests\Order\StoreRequest;
@@ -34,7 +32,6 @@ use App\Traits\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Facades\Excel;
 use Throwable;
 
@@ -48,7 +45,7 @@ class OrderController extends AdminBaseController
      * @param OrderServiceInterface $orderService
      */
     public function __construct(
-        private OrderRepoInterface $orderRepository, // todo remove
+        private OrderRepoInterface $orderRepository,
         private AdminOrderRepository $adminRepository,
         private OrderServiceInterface $orderService
     )
@@ -77,9 +74,8 @@ class OrderController extends AdminBaseController
     public function paginate(FilterParamsRequest $request): JsonResponse
     {
         $filter = $request->all();
-        $status = data_get($filter, 'status');
 
-        $orders     = $this->adminRepository->ordersPaginate($filter);
+        $orders = $this->adminRepository->ordersPaginate($filter);
 
 //        $filter['date_from'] = date('Y-m-d H:i:s', strtotime('-1 minute'));
 
@@ -87,12 +83,8 @@ class OrderController extends AdminBaseController
         $lastPage   = (new DashboardRepository)->getLastPage(
             data_get($filter, 'perPage', 10),
             $statistic,
-            $status
+            data_get($filter, 'status')
         );
-
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
-        }
 
         return $this->successResponse(__('errors.' . ResponseError::SUCCESS, locale: $this->language), [
             'statistic' => $statistic,
@@ -100,8 +92,7 @@ class OrderController extends AdminBaseController
             'meta'      => [
                 'current_page'  => (int)data_get($filter, 'page', 1),
                 'per_page'      => (int)data_get($filter, 'perPage', 10),
-                'last_page'     => $lastPage,
-                'total'         => (int)data_get($statistic, 'total', 0),
+                'last_page'     => $lastPage
             ],
         ]);
     }
@@ -126,18 +117,13 @@ class OrderController extends AdminBaseController
             data_get($filter, 'status')
         );
 
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
-        }
-
         return $this->successResponse(__('errors.' . ResponseError::SUCCESS, locale: $this->language), [
             'statistic' => $statistic,
             'orders'    =>  OrderResource::collection($orders),
             'meta'      => [
                 'current_page'  => (int)data_get($filter, 'page', 1),
                 'per_page'      => (int)data_get($filter, 'perPage', 10),
-                'last_page'     => $lastPage,
-                'total'         => (int)data_get($filter, 'perPage', 10) * $lastPage,
+                'last_page'     => $lastPage
             ],
         ]);
     }
@@ -174,7 +160,7 @@ class OrderController extends AdminBaseController
         }
 
         /** @var Shop $shop */
-        $shop  = Shop::with(['seller', 'deliveryZone'])->find(data_get($validated, 'shop_id'));
+        $shop  = Shop::with(['seller'])->find(data_get($validated, 'shop_id'));
 
         $address = null;
 
@@ -182,9 +168,9 @@ class OrderController extends AdminBaseController
             $address = UserAddress::find($request->input('address_id'));
         }
 
-        $check = Utility::pointInPolygon($address?->location ?? $request->input('location', []), $shop?->deliveryZone?->address ?? []);
+        $check = Utility::pointInPolygon($address?->location ?? $request->input('location'), $shop->deliveryZone->address);
 
-        if (!$check && data_get($validated, 'delivery_type') === Order::DELIVERY) {
+        if (!$check) {
             return $this->onErrorResponse([
                 'code'    => ResponseError::ERROR_433,
                 'message' => __('errors.' . ResponseError::NOT_IN_POLYGON, locale: $this->language)
@@ -197,10 +183,6 @@ class OrderController extends AdminBaseController
             return $this->onErrorResponse($result);
         }
 
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
-        }
-
         $seller = $shop?->seller;
         $firebaseToken = $seller?->firebase_token;
 
@@ -211,14 +193,6 @@ class OrderController extends AdminBaseController
             data_get($result, 'data')?->setAttribute('type', PushNotification::NEW_ORDER)?->only(['id', 'status', 'type']),
             $seller?->id ? [$seller->id] : []
         );
-
-        if ((int)data_get(Settings::adminSettings()->where('key', 'order_auto_approved')->first(), 'value') === 1) {
-            (new NotificationHelper)->autoAcceptNotification(
-                data_get($result, 'data'),
-                $this->language,
-                Order::STATUS_ACCEPTED
-            );
-        }
 
         return $this->successResponse(
             __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_CREATED, locale: $this->language),
@@ -243,10 +217,6 @@ class OrderController extends AdminBaseController
             ]);
         }
 
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
-        }
-
         return $this->successResponse(
             __('errors.' . ResponseError::SUCCESS, locale: $this->language),
             $this->orderRepository->reDataOrder($order)
@@ -266,10 +236,6 @@ class OrderController extends AdminBaseController
 
         if (!data_get($result, 'status')) {
             return $this->onErrorResponse($result);
-        }
-
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
         }
 
         return $this->successResponse(
@@ -304,10 +270,6 @@ class OrderController extends AdminBaseController
 
         if (!data_get($result, 'status')) {
             return $this->onErrorResponse($result);
-        }
-
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
         }
 
         return $this->successResponse(
@@ -394,10 +356,6 @@ class OrderController extends AdminBaseController
             return $this->onErrorResponse($result);
         }
 
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
-        }
-
         return $this->successResponse(
             __('errors.' . ResponseError::NO_ERROR),
             $this->orderRepository->reDataOrder(data_get($result, 'data')),
@@ -456,21 +414,7 @@ class OrderController extends AdminBaseController
         try {
             $result = $this->orderRepository->ordersReportChart($request->validated());
 
-            return $this->successResponse('Successfully', $result);
-        } catch (Throwable $e) {
-
-            $this->error($e);
-
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_400, 'message' => $e->getMessage()]);
-        }
-    }
-
-    public function reportTransactions(OrderTransactionRequest $request): JsonResponse
-    {
-        try {
-            $result = $this->orderRepository->orderReportTransaction($request->validated());
-
-            return $this->successResponse('Successfully', $result);
+            return $this->successResponse('Successfully imported', $result);
         } catch (Throwable $e) {
 
             $this->error($e);
@@ -551,12 +495,12 @@ class OrderController extends AdminBaseController
 
     public function fileExport(FilterParamsRequest $request): JsonResponse
     {
-        $fileName = 'export/orders.xlsx';
+        $fileName = 'export/orders.xls';
 
         try {
             $filter = $request->merge(['language' => $this->language])->all();
 
-            Excel::store(new OrderExport($filter), $fileName, 'public', \Maatwebsite\Excel\Excel::XLSX);
+            Excel::store(new OrderExport($filter), $fileName, 'public');
 
             return $this->successResponse('Successfully exported', [
                 'path'      => 'public/export',

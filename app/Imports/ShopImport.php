@@ -7,6 +7,7 @@ use App\Traits\Loggable;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\Importable;
@@ -23,10 +24,17 @@ class ShopImport implements ToCollection, WithHeadingRow, WithBatchInserts
      * @param Collection $collection
      * @return void
      */
-    public function collection(Collection $collection): void
+    public function collection(Collection $collection)
     {
+        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
+            abort(403);
+        }
 
         foreach ($collection as $row) {
+
+            $type = !empty(data_get($row, 'type')) ?
+                data_get(Shop::TYPES_BY, data_get($row, 'type'), Shop::TYPE_SHOP) :
+                Shop::TYPE_SHOP;
 
             $explodeDeliveryTime = explode(',', data_get($row, 'delivery_time', ''));
 
@@ -36,7 +44,7 @@ class ShopImport implements ToCollection, WithHeadingRow, WithBatchInserts
                 'type'  => str_replace(['type:', ' '], '', data_get($explodeDeliveryTime, 2, '')),
             ];
 
-            $location = explode(',', data_get($row, 'location', ''));
+            $location   = explode(',', data_get($row, 'location', ''));
 
             $shop = Shop::updateOrCreate(['user_id' => data_get($row, 'user_id')], [
                 'tax'               => data_get($row, 'tax', 0),
@@ -55,6 +63,7 @@ class ShopImport implements ToCollection, WithHeadingRow, WithBatchInserts
                 'status_note'       => data_get($row, 'status_note', ''),
                 'take'              => data_get($row, 'take') !== null ? data_get($row, 'take') : '',
                 'delivery_time'     => $deliveryTime,
+                'type'              => $type,
                 'price'             => data_get($row, 'price', 0),
                 'price_per_km'      => data_get($row, 'price_per_km', 0),
             ]);
@@ -120,12 +129,6 @@ class ShopImport implements ToCollection, WithHeadingRow, WithBatchInserts
 
     public function batchSize(): int
     {
-        return 200;
+        return 10;
     }
-
-    public function chunkSize(): int
-    {
-        return 200;
-    }
-
 }

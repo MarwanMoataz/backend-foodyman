@@ -75,7 +75,6 @@ class UserResource extends JsonResource
             'orders'                        => OrderResource::collection($this->whenLoaded('orders')),
             'orders_count'                  => $this->when($this->orders_count, $this->orders_count),
             'orders_sum_total_price'        => $this->whenLoaded($this->orders_sum_total_price, $this->orders_sum_total_price),
-
             'deliveryman_orders'            => OrderResource::collection($this->whenLoaded('deliveryManOrders')),
             'email_subscribe'               => $this->whenLoaded('emailSubscription'),
             'notifications'                 => $this->whenLoaded('notifications'),
@@ -87,8 +86,6 @@ class UserResource extends JsonResource
             'invitations'                   => InviteResource::collection($this->whenLoaded('invitations')),
             'invite'                        => InviteResource::make($this->whenLoaded('invite')),
             'delivery_man_setting'          => DeliveryManSettingResource::make($this->whenLoaded('deliveryManSetting')),
-            'logs'                          => ModelLogResource::collection($this->whenLoaded('logs')),
-            'addresses'                     => UserAddressResource::collection($this->whenLoaded('addresses')),
         ];
     }
 

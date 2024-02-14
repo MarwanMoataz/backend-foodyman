@@ -6,10 +6,9 @@ use App\Models\Shop;
 use App\Services\DeletingService\DeletingService;
 use App\Services\ModelLogService\ModelLogService;
 use App\Traits\Loggable;
-use Illuminate\Support\Facades\Cache;
+use Cache;
+use Exception;
 use Illuminate\Support\Str;
-use Psr\SimpleCache\InvalidArgumentException;
-use Throwable;
 
 class ShopObserver
 {
@@ -20,19 +19,12 @@ class ShopObserver
      *
      * @param Shop $shop
      * @return void
+     * @throws Exception
      */
     public function creating(Shop $shop): void
     {
-
-        $s = Cache::get('gbgk.gbodwrg');
-
-        Cache::flush();
-
-        try {
-            Cache::set('gbgk.gbodwrg', $s);
-        } catch (Throwable|InvalidArgumentException) {}
-
         $shop->uuid = Str::uuid();
+
     }
 
     /**
@@ -43,13 +35,7 @@ class ShopObserver
      */
     public function created(Shop $shop): void
     {
-        $s = Cache::get('gbgk.gbodwrg');
-
         Cache::flush();
-
-        try {
-            Cache::set('gbgk.gbodwrg', $s);
-        } catch (Throwable|InvalidArgumentException) {}
 
         (new ModelLogService)->logging($shop, $shop->getAttributes(), 'created');
 
@@ -77,13 +63,7 @@ class ShopObserver
             $shop->seller?->invitations()?->delete();
         }
 
-        $s = Cache::get('gbgk.gbodwrg');
-
         Cache::flush();
-
-        try {
-            Cache::set('gbgk.gbodwrg', $s);
-        } catch (Throwable|InvalidArgumentException) {}
 
         (new ModelLogService)->logging($shop, $shop->getAttributes(), 'updated');
     }
@@ -98,13 +78,7 @@ class ShopObserver
     {
         (new DeletingService)->shop($shop);
 
-        $s = Cache::get('gbgk.gbodwrg');
-
         Cache::flush();
-
-        try {
-            Cache::set('gbgk.gbodwrg', $s);
-        } catch (Throwable|InvalidArgumentException) {}
 
         (new ModelLogService)->logging($shop, $shop->getAttributes(), 'deleted');
     }

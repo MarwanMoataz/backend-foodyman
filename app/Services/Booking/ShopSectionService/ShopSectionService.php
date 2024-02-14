@@ -38,7 +38,6 @@ class ShopSectionService extends CoreService
                 'data'      => $model,
             ];
         } catch (Throwable $e) {
-
             $this->error($e);
 
             return [
@@ -81,10 +80,7 @@ class ShopSectionService extends CoreService
 
     public function delete(?array $ids = [], ?int $shopId = null): array
     {
-        $models = ShopSection::with([
-            'tables.users'
-        ])
-            ->whereIn('id', is_array($ids) ? $ids : [])
+        $models = ShopSection::whereIn('id', is_array($ids) ? $ids : [])
             ->when($shopId, fn($q) => $q->where('shop_id', $shopId))
             ->get();
 

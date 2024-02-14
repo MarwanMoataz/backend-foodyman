@@ -27,8 +27,7 @@ class ChangeUserIdColumnInUserBookingsTable extends Migration
     public function down(): void
     {
         Schema::table('user_bookings', function (Blueprint $table) {
-            $table->dropForeign('user_bookings_user_id_foreign');
-            $table->foreignId('user_id')->nullable()->constrained()->cascadeOnUpdate()->cascadeOnDelete();
+            //
         });
     }
 }

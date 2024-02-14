@@ -21,11 +21,6 @@ class ResponseError
     public const ERROR_113 = 'ERROR_113'; // 'Deliveryman doesn't have Wallet'
     public const ERROR_114 = 'ERROR_114'; // 'Seller doesn't have Wallet'
     public const ERROR_115 = 'ERROR_115'; // 'Phone not found'
-    public const ERROR_116 = 'ERROR_116'; // 'Ads already activated'
-    public const ERROR_117 = 'ERROR_117'; // 'Phone is required'
-    public const ERROR_118 = 'ERROR_118'; // 'Shop is closed'
-    public const ERROR_119 = 'ERROR_119'; // 'Duplicate stock'
-    public const ERROR_120 = 'ERROR_120'; // 'Password update error'
 
     public const ERROR_201 = 'ERROR_201'; // 'Wrong OTP Code'
     public const ERROR_202 = 'ERROR_202'; // 'Too many request, try later'
@@ -65,7 +60,6 @@ class ResponseError
     public const ERROR_431 = 'ERROR_431'; // 'Active default currency not found'
     public const ERROR_432 = 'ERROR_432'; // 'Undefined Type'
     public const ERROR_433 = 'ERROR_433'; // 'Not in polygon'
-    public const ERROR_440 = 'ERROR_440'; // 'Other Shop'
 
     public const ERROR_501 = 'ERROR_501'; // 'Error during created.'
     public const ERROR_502 = 'ERROR_502'; // 'Error during updated.'

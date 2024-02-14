@@ -43,11 +43,7 @@ class ShopWorkingDayService extends CoreService
 
             $this->error($e);
 
-            return [
-                'status'  => false,
-                'code'    => ResponseError::ERROR_501,
-                'message' => __('errors.' . ResponseError::ERROR_501, locale: $this->language)
-            ];
+            return ['status' => false, 'message' => ResponseError::ERROR_501, 'code' => ResponseError::ERROR_501];
         }
     }
 
@@ -72,22 +68,16 @@ class ShopWorkingDayService extends CoreService
 
             $this->error($e);
 
-            return [
-                'status'  => false,
-                'code'    => ResponseError::ERROR_502,
-                'message' => __('errors.' . ResponseError::ERROR_502, locale: $this->language)
-            ];
+            return ['status' => false, 'code' => ResponseError::ERROR_501, 'message' => ResponseError::ERROR_501];
         }
     }
 
     public function delete(?array $ids = [], ?int $shopId = null) {
 
-        $models = ShopWorkingDay::when($shopId, function($q, $shopId) use ($ids) {
-            $q->where('shop_id', $shopId)->find($ids);
-        });
+        $shopWorkingDays = ShopWorkingDay::when($shopId, fn($q, $shopId) => $q->where('shop_id', $shopId))->find(is_array($ids) ? $ids : []);
 
-        foreach ($models as $model) {
-            $model->delete();
+        foreach ($shopWorkingDays as $shopWorkingDay) {
+            $shopWorkingDay->delete();
         }
 
     }

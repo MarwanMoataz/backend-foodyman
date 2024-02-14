@@ -12,7 +12,6 @@ use App\Repositories\ShopWorkingDayRepository\ShopWorkingDayRepository;
 use App\Services\ShopWorkingDayService\ShopWorkingDayService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Cache;
 
 class ShopWorkingDayController extends AdminBaseController
 {
@@ -38,13 +37,9 @@ class ShopWorkingDayController extends AdminBaseController
      */
     public function paginate(FilterParamsRequest $request): AnonymousResourceCollection
     {
-        $model = $this->repository->paginate($request->all());
+        $shopsWithWorkingDays = $this->repository->paginate($request->all());
 
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
-        }
-
-        return ShopResource::collection($model);
+        return ShopResource::collection($shopsWithWorkingDays);
     }
 
     /**
@@ -58,10 +53,7 @@ class ShopWorkingDayController extends AdminBaseController
         $shop = Shop::whereUuid($uuid)->first();
 
         if (empty($shop)) {
-            return $this->onErrorResponse([
-                'code'      => ResponseError::ERROR_404,
-                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
-            ]);
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
         }
 
         $shopWorkingDays = $this->repository->show($shop->id);
@@ -102,10 +94,7 @@ class ShopWorkingDayController extends AdminBaseController
         $shop = Shop::whereUuid($uuid)->first();
 
         if (empty($shop)) {
-            return $this->onErrorResponse([
-                'code'      => ResponseError::ERROR_404,
-                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
-            ]);
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
         }
 
         $result = $this->service->update($shop->id, $request->validated());
@@ -114,9 +103,7 @@ class ShopWorkingDayController extends AdminBaseController
             return $this->onErrorResponse($result);
         }
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_UPDATED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_has_been_successfully_updated'), []);
     }
 
     /**
@@ -129,9 +116,7 @@ class ShopWorkingDayController extends AdminBaseController
     {
         $this->service->delete($request->input('ids', []));
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_has_been_successfully_delete'), []);
     }
 
     /**
@@ -141,9 +126,7 @@ class ShopWorkingDayController extends AdminBaseController
     {
         $this->service->dropAll();
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_was_successfully_updated'), []);
     }
 
     /**
@@ -153,9 +136,7 @@ class ShopWorkingDayController extends AdminBaseController
     {
         $this->service->truncate();
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_was_successfully_updated'), []);
     }
 
     /**
@@ -165,9 +146,7 @@ class ShopWorkingDayController extends AdminBaseController
     {
         $this->service->restoreAll();
 
-        return $this->successResponse(
-            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
-        );
+        return $this->successResponse(__('web.record_was_successfully_updated'), []);
     }
 
 }

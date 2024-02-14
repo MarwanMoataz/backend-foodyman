@@ -6,7 +6,6 @@ use App\Models\Notification;
 use App\Models\User;
 use App\Services\CoreService;
 use App\Services\Interfaces\UserServiceInterface;
-use DB;
 use Exception;
 use Throwable;
 
@@ -179,24 +178,19 @@ class UserService extends CoreService implements UserServiceInterface
     public function updateNotifications(array $data): array
     {
         try {
-            /** @var User $user */
-            $user = auth('sanctum')->user();
-
-            DB::table('notification_user')->where('user_id', $user->id)->delete();
-
-            $user->notifications()->attach(data_get($data, 'notifications'));
+            auth('sanctum')->user()->notifications()->sync(data_get($data, 'notifications'));
 
             return [
                 'status' => true,
                 'code'   => ResponseError::NO_ERROR,
-                'data'   => $user->fresh('notifications')
+                'data'   => auth('sanctum')->user()->loadMissing('notifications')
             ];
-        } catch (Throwable $e) {
+        } catch (Exception $e) {
             $this->error($e);
             return [
-                'status'  => false,
-                'code'    => ResponseError::ERROR_502,
-                'message' => __('errors.' . ResponseError::ERROR_502, locale: $this->language)
+                'status'    => false,
+                'code'      => ResponseError::ERROR_400,
+                'message'   => "cant update notifications"
             ];
         }
     }
@@ -208,11 +202,6 @@ class UserService extends CoreService implements UserServiceInterface
 
         foreach (User::find($ids) as $user) {
             try {
-
-                if ($user->id == auth('sanctum')->id()) {
-                    continue;
-                }
-
                 $user->delete();
             } catch (Throwable) {
                 $errors[] = $user->firstname . ' / ' . $user->lastname;

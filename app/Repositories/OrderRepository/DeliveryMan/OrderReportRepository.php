@@ -35,6 +35,7 @@ class OrderReportRepository extends CoreRepository
             ->where('deliveryman', data_get($filter, 'deliveryman'))
             ->where('created_at', '>=', $dateFrom)
             ->where('created_at', '<=', $dateTo)
+            ->whereNull('deleted_at')
             ->latest('id')
             ->first();
 
@@ -42,6 +43,7 @@ class OrderReportRepository extends CoreRepository
             ->where('deliveryman', data_get($filter, 'deliveryman'))
             ->where('created_at', '>=', $dateFrom)
             ->where('created_at', '<=', $dateTo)
+            ->whereNull('deleted_at')
             ->select([
                 DB::raw("sum(if(status = 'delivered', delivery_fee, 0)) as delivery_fee"),
                 DB::raw('count(id) as total_count'),
@@ -66,6 +68,7 @@ class OrderReportRepository extends CoreRepository
             ->where('deliveryman', data_get($filter, 'deliveryman'))
             ->where('created_at', '>=', $dateFrom)
             ->where('created_at', '<=', $dateTo)
+            ->whereNull('deleted_at')
             ->where('status', Order::STATUS_DELIVERED)
             ->select([
                 DB::raw("(DATE_FORMAT(created_at, '$type')) as time"),
