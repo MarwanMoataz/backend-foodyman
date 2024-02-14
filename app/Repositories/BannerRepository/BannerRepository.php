@@ -73,7 +73,7 @@ class BannerRepository extends CoreRepository
                             'bonus_quantity', 'value', 'type', 'status'
                         ]),
 //                        'stock.bonus.stock',
-//                        'stock.bonus.stock.countable:id,uuid,tax,bar_code,status,active,img,min_qty,max_qty',
+//                        'stock.bonus.stock.countable:id,uuid,tax,status,active,img,min_qty,max_qty,interval',
 //                        'stock.bonus.stock.countable.translation' => fn($q) => $q->select('id', 'product_id', 'title', 'locale'),
                         'stock.stockExtras.group.translation' => fn($q) => $q->where('locale', $this->language)->orWhere('locale', $locale),
                         'discounts' => fn($q) => $q

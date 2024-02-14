@@ -2,11 +2,11 @@
 
 namespace App\Services\StoryService;
 
+use App\Helpers\FileHelper;
 use App\Helpers\ResponseError;
-use App\Models\Settings;
 use App\Models\Story;
 use App\Services\CoreService;
-use Illuminate\Http\UploadedFile;
+use Exception;
 use Throwable;
 
 class StoryService extends CoreService
@@ -23,8 +23,8 @@ class StoryService extends CoreService
 
             return [
                 'status' => true,
-                'code' => ResponseError::NO_ERROR,
-                'data' => [],
+                'code'   => ResponseError::NO_ERROR,
+                'data'   => [],
             ];
         } catch (Throwable $e) {
             $this->error($e);
@@ -32,7 +32,7 @@ class StoryService extends CoreService
 
         return [
             'status' => false,
-            'code' => ResponseError::ERROR_501,
+            'code'   => ResponseError::ERROR_501,
         ];
     }
 
@@ -43,8 +43,8 @@ class StoryService extends CoreService
 
             return [
                 'status' => true,
-                'code' => ResponseError::NO_ERROR,
-                'data' => [],
+                'code'   => ResponseError::NO_ERROR,
+                'data'   => [],
             ];
         } catch (Throwable $e) {
             $this->error($e);
@@ -52,7 +52,7 @@ class StoryService extends CoreService
 
         return [
             'status' => false,
-            'code' => ResponseError::ERROR_501,
+            'code'   => ResponseError::ERROR_501,
         ];
     }
 
@@ -70,7 +70,7 @@ class StoryService extends CoreService
 
         return [
             'status' => true,
-            'code' => ResponseError::NO_ERROR,
+            'code'   => ResponseError::NO_ERROR,
         ];
     }
 
@@ -78,29 +78,16 @@ class StoryService extends CoreService
     {
         $fileUrls = [];
 
-        $isAws = Settings::adminSettings()->where('key', 'aws')->first();
-
-        $options = [];
-
-        if (data_get($isAws, 'value')) {
-            $options = ['disk' => 's3'];
-        }
-
         foreach (data_get($data, 'files') as $file) {
 
             try {
-                /** @var UploadedFile $file */
-                $id = auth('sanctum')->id() ?? "0001";
+                $result = FileHelper::uploadFile($file, 'stories');
 
-                $ext = strtolower(
-                    preg_replace("#.+\.([a-z]+)$#i", "$1", str_replace(['.png', '.jpg'], '.webp', $file->getClientOriginalName()))
-                );
+                if (!data_get($result, 'status')) {
+                    throw new Exception($result['message'] ?? 'message');
+                }
 
-                $fileName = $id . '-' . now()->unix() . '.' . $ext;
-
-                $url = $file->storeAs('public/stories', $fileName, $options);
-
-                $fileUrls[] = str_replace('public/images/', '', config('app.img_host')) . $url;
+                $fileUrls[] = $result['data'];
 
             } catch (Throwable $e) {
                 $message = $e->getMessage();
@@ -116,15 +103,15 @@ class StoryService extends CoreService
 
         if (count($fileUrls) === 0) {
             return [
-                'status'    => false,
-                'code'      => ResponseError::ERROR_508,
+                'status' => false,
+                'code'   => ResponseError::ERROR_508,
             ];
         }
 
         return [
-            'status'    => true,
-            'code'      => ResponseError::NO_ERROR,
-            'data'      => $fileUrls,
+            'status' => true,
+            'code'   => ResponseError::NO_ERROR,
+            'data'   => $fileUrls,
         ];
     }
 

@@ -34,10 +34,6 @@ class ShopWorkingDayController extends SellerBaseController
      */
     public function index(): JsonResponse
     {
-        if (!$this->shop) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
-        }
-
         return $this->show($this->shop->uuid);
     }
 
@@ -50,10 +46,6 @@ class ShopWorkingDayController extends SellerBaseController
      */
     public function store(SellerRequest $request): JsonResponse
     {
-        if (!$this->shop) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
-        }
-
         $validated = $request->validated();
         $validated['shop_id'] = $this->shop->id;
         $result = $this->service->create($validated);
@@ -73,14 +65,17 @@ class ShopWorkingDayController extends SellerBaseController
      */
     public function show(string $uuid): JsonResponse
     {
-        if (!$this->shop || $this->shop->uuid != $uuid) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
+        if ($this->shop->uuid != $uuid) {
+            return $this->onErrorResponse([
+                'code'    => ResponseError::ERROR_101,
+                'message' => __('errors.' . ResponseError::ERROR_101, locale: $this->language)
+            ]);
         }
 
-        $shopWorkingDays = $this->repository->show($this->shop->id);
+        $models = $this->repository->show($this->shop->id);
 
         return $this->successResponse(ResponseError::NO_ERROR, [
-            'dates' => ShopWorkingDayResource::collection($shopWorkingDays),
+            'dates' => ShopWorkingDayResource::collection($models),
             'shop'  => ShopResource::make($this->shop),
         ]);
     }
@@ -94,8 +89,11 @@ class ShopWorkingDayController extends SellerBaseController
      */
     public function update(string $uuid, SellerRequest $request): JsonResponse
     {
-        if (!$this->shop || $this->shop->uuid != $uuid) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
+        if ($this->shop->uuid != $uuid) {
+            return $this->onErrorResponse([
+                'code'    => ResponseError::ERROR_101,
+                'message' => __('errors.' . ResponseError::ERROR_101, locale: $this->language)
+            ]);
         }
 
         $result = $this->service->update($this->shop->id, $request->validated());
@@ -104,7 +102,7 @@ class ShopWorkingDayController extends SellerBaseController
             return $this->onErrorResponse($result);
         }
 
-        return $this->successResponse(__('web.record_was_successfully_create'), []);
+        return $this->successResponse(__('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_CREATED, locale: $this->language));
     }
 
     /**
@@ -115,13 +113,10 @@ class ShopWorkingDayController extends SellerBaseController
      */
     public function destroy(FilterParamsRequest $request): JsonResponse
     {
-
-        if (!$this->shop) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_101]);
-        }
-
         $this->service->delete($request->input('ids', []), $this->shop->id);
 
-        return $this->successResponse(__('web.record_has_been_successfully_delete'), []);
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 }

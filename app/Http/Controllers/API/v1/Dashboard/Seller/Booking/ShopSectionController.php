@@ -66,6 +66,13 @@ class ShopSectionController extends SellerBaseController
      */
     public function show(ShopSection $shopSection): JsonResponse
     {
+        if ($shopSection->shop_id !== $this->shop->id) {
+            return $this->onErrorResponse([
+                'code'      => ResponseError::ERROR_404,
+                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
+            ]);
+        }
+
         $result = $this->repository->show($shopSection);
 
         return $this->successResponse(

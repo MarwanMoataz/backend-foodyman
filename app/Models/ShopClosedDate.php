@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
 /**
- * App\Models\Tag
+ * App\Models\ShopClosedDate
  *
  * @property int $id
  * @property int $shop_id
@@ -20,14 +20,14 @@ use Illuminate\Support\Carbon;
  * @property Carbon $created_at
  * @property Carbon $updated_at
  * @property Carbon $deleted_at
- * @method static Builder|ShopClosedDate filter($query, $filter)
- * @method static Builder|ShopClosedDate newModelQuery()
- * @method static Builder|ShopClosedDate newQuery()
- * @method static Builder|ShopClosedDate query()
- * @method static Builder|ShopClosedDate whereCreatedAt($value)
- * @method static Builder|ShopClosedDate whereId($value)
- * @method static Builder|ShopClosedDate whereShopId($value)
- * @method static Builder|ShopClosedDate whereUpdatedAt($value)
+ * @method static Builder|self filter($query, $filter)
+ * @method static Builder|self newModelQuery()
+ * @method static Builder|self newQuery()
+ * @method static Builder|self query()
+ * @method static Builder|self whereCreatedAt($value)
+ * @method static Builder|self whereId($value)
+ * @method static Builder|self whereShopId($value)
+ * @method static Builder|self whereUpdatedAt($value)
  * @mixin Eloquent
  */
 class ShopClosedDate extends Model

@@ -65,7 +65,7 @@ class ModelLog extends Model
 
             $q->where('type', data_get($filter, 'model_type') . '_' . data_get($filter, 'type'));
 
-        })->when(data_get($filter, 'user_id'), function (Builder $q, $userId) use ($filter) {
+        })->when(data_get($filter, 'user_id'), function (Builder $q, $userId) {
 
             $q->where('created_by', $userId);
 

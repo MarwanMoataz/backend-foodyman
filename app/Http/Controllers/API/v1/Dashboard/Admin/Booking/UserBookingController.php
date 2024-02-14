@@ -16,7 +16,6 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class UserBookingController extends AdminBaseController
 {
-
     public function __construct(private UserBookingService $service, private UserBookingRepository $repository)
     {
         parent::__construct();
@@ -63,11 +62,11 @@ class UserBookingController extends AdminBaseController
      */
     public function show(UserBooking $userBooking): JsonResponse
     {
-        $result = $this->repository->show($userBooking);
+        $userBooking = $this->repository->show($userBooking);
 
         return $this->successResponse(
             __('errors.' . ResponseError::SUCCESS, locale: $this->language),
-            UserBookingResource::make($result)
+            UserBookingResource::make($userBooking)
         );
     }
 

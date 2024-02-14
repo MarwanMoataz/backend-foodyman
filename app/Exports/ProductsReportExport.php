@@ -39,7 +39,6 @@ class ProductsReportExport implements FromCollection, WithMapping, ShouldAutoSiz
         /** @var Product $row */
         return [
             $row->translation_title,
-            $row->bar_code,
             $row->items_sold,
             $row->net_sales,
             $row->orders_count,

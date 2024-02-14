@@ -44,12 +44,10 @@ class AdminRequest extends BaseRequest
             'qr_code'               => ['string', Rule::unique('products','qr_code')
                                                       ->ignore(request()->route('product'),'uuid')
             ],
-            'bar_code'              => ['string', Rule::unique('products','bar_code')
-                                                      ->ignore(request()->route('product'),'uuid')
-            ],
             'active'                => 'boolean',
             'addon'                 => 'boolean',
             'vegetarian'            => 'boolean',
+            'interval'              => 'numeric',
             'kcal'                  => 'string|max:10',
             'carbs'                 => 'string|max:10',
             'protein'               => 'string|max:10',

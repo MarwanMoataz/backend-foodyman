@@ -9,15 +9,12 @@ use App\Services\AuthService\AuthByEmail;
 use App\Services\AuthService\AuthByMobilePhone;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+
 
 class RegisterController extends Controller
 {
     use ApiResponse;
-    
-    public function testapi(Request $request){
-        return response()->json($request->id);
-    }
+
     public function register(RegisterRequest $request): JsonResponse
     {
         if ($request->input('phone')) {

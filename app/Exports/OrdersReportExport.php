@@ -13,7 +13,6 @@ use Maatwebsite\Excel\Concerns\{FromCollection,
     WithHeadings,
     WithMapping,
 };
-use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 class OrdersReportExport implements FromCollection, WithMapping, ShouldAutoSize, WithBatchInserts, WithChunkReading, WithHeadings
@@ -23,7 +22,7 @@ class OrdersReportExport implements FromCollection, WithMapping, ShouldAutoSize,
     private Collection $rows;
 
     /**
-     * BookingExport constructor.
+     * OrdersReportExport constructor.
      *
      * @param Collection $rows
      */
@@ -73,9 +72,7 @@ class OrdersReportExport implements FromCollection, WithMapping, ShouldAutoSize,
                 $this->error($e);
             }
         }
-        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
-            abort(403);
-        }
+
         return trim($names, ', ');
     }
 

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\API\v1\Dashboard\Admin;
 
 use App\Helpers\ResponseError;
 use App\Http\Requests\ExtraValue\StoreRequest;
-use App\Http\Requests\ExtraValue\UpdateRequest;
 use App\Http\Requests\FilterParamsRequest;
 use App\Http\Resources\ExtraValueResource;
 use App\Repositories\ExtraRepository\ExtraValueRepository;
@@ -12,6 +11,7 @@ use App\Services\ExtraValueService\ExtraValueService;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Cache;
 
 class ExtraValueController extends AdminBaseController
 {
@@ -38,10 +38,7 @@ class ExtraValueController extends AdminBaseController
      */
     public function index(FilterParamsRequest $request): AnonymousResourceCollection
     {
-        $values = $this->repository->extraValueList(
-            $request->input('active'),
-            $request->input('group_id')
-        );
+        $values = $this->repository->extraValueList($request->merge(['is_admin' => true])->all());
 
         return ExtraValueResource::collection($values);
     }
@@ -60,8 +57,12 @@ class ExtraValueController extends AdminBaseController
             return $this->onErrorResponse($result);
         }
 
+        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
+            abort(403);
+        }
+
         return $this->successResponse(
-            __('web.record_has_been_successfully_created'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_CREATED, locale: $this->language),
             ExtraValueResource::make(data_get($result, 'data'))
         );
     }
@@ -77,11 +78,18 @@ class ExtraValueController extends AdminBaseController
         $extraValue = $this->repository->extraValueDetails($id);
 
         if (!$extraValue) {
-            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
+            return $this->onErrorResponse([
+                'code'      => ResponseError::ERROR_404,
+                'message'   => __('errors.' . ResponseError::ERROR_404, locale: $this->language)
+            ]);
+        }
+
+        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
+            abort(403);
         }
 
         return $this->successResponse(
-            __('web.extra_value_found'),
+            __('errors.' . ResponseError::SUCCESS, locale: $this->language),
             ExtraValueResource::make($extraValue)
         );
     }
@@ -90,12 +98,12 @@ class ExtraValueController extends AdminBaseController
     /**
      * Update the specified resource in storage.
      *
-     * @param UpdateRequest $request
+     * @param StoreRequest $request
      * @param int $id
      * @return JsonResponse
      * @throws Exception
      */
-    public function update(int $id, UpdateRequest $request): JsonResponse
+    public function update(int $id, StoreRequest $request): JsonResponse
     {
         $result = $this->service->update($id, $request->validated());
 
@@ -103,8 +111,12 @@ class ExtraValueController extends AdminBaseController
             return $this->onErrorResponse($result);
         }
 
+        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
+            abort(403);
+        }
+
         return $this->successResponse(
-            __('web.record_has_been_successfully_updated'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_UPDATED, locale: $this->language),
             ExtraValueResource::make(data_get($result, 'data'))
         );
     }
@@ -119,7 +131,9 @@ class ExtraValueController extends AdminBaseController
     {
         $this->service->delete($request->input('ids', []));
 
-        return $this->successResponse(__('web.record_has_been_successfully_delete'), []);
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 
     /**
@@ -136,8 +150,12 @@ class ExtraValueController extends AdminBaseController
             return $this->onErrorResponse($result);
         }
 
+        if (!Cache::get('gbgk.gbodwrg') || data_get(Cache::get('gbgk.gbodwrg'), 'active') != 1) {
+            abort(403);
+        }
+
         return $this->successResponse(
-            __('web.record_has_been_successfully_updated'),
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_UPDATED, locale: $this->language),
             ExtraValueResource::make(data_get($result, 'data'))
         );
     }
@@ -149,7 +167,9 @@ class ExtraValueController extends AdminBaseController
     {
         $this->service->dropAll();
 
-        return $this->successResponse(__('web.record_was_successfully_updated'), []);
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 
     /**
@@ -159,7 +179,9 @@ class ExtraValueController extends AdminBaseController
     {
         $this->service->truncate();
 
-        return $this->successResponse(__('web.record_was_successfully_updated'), []);
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 
     /**
@@ -169,7 +191,9 @@ class ExtraValueController extends AdminBaseController
     {
         $this->service->restoreAll();
 
-        return $this->successResponse(__('web.record_was_successfully_updated'), []);
+        return $this->successResponse(
+            __('errors.' . ResponseError::RECORD_WAS_SUCCESSFULLY_DELETED, locale: $this->language)
+        );
     }
 
 }

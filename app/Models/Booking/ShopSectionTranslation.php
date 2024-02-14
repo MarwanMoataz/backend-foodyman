@@ -2,6 +2,7 @@
 
 namespace App\Models\Booking;
 
+use Eloquent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @method static Builder|self newQuery()
  * @method static Builder|self query()
  * @method static Builder|self whereId($value)
+ * @mixin Eloquent
  */
 class ShopSectionTranslation extends Model
 {

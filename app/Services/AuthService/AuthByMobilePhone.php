@@ -83,6 +83,7 @@ class AuthByMobilePhone extends CoreService
 
         } else {
             $data['phone']      = data_get($array, 'phone');
+            $data['email']      = data_get($array, 'email');
             $data['referral']   = data_get($array, 'referral');
             $data['firstname']  = data_get($array, 'firstname');
             $data['lastname']   = data_get($array, 'lastname');
@@ -143,10 +144,16 @@ class AuthByMobilePhone extends CoreService
 
     public function forgetPasswordVerify(array $data): JsonResponse
     {
-        $user = User::where('phone', data_get($data, 'phone'))->first();
+        $user = User::withTrashed()->where('phone', str_replace('+', '', data_get($data, 'phone')))->first();
 
         if (empty($user)) {
-             return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
+            return $this->onErrorResponse(['code' => ResponseError::ERROR_404]);
+        }
+
+        if (!empty($user->deleted_at)) {
+            $user->update([
+                'deleted_at' => null
+            ]);
         }
 
         $token = $user->createToken('api_token')->plainTextToken;
